@@ -1,0 +1,602 @@
+[
+  {
+    "name": "National Philanthropic Trust",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $4,575,000 | FY26: $0 | Total: $4,575,000"
+  },
+  {
+    "name": "The Marcus Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $3,739,500 | FY26: $0 | Total: $3,739,500"
+  },
+  {
+    "name": "Charles and Lynn Schusterman Family Philanthropies",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $2,302,721 | FY26: $1,350,000 | Total: $3,652,721"
+  },
+  {
+    "name": "Jewish Communal Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $3,098,000 | FY26: $0 | Total: $3,098,000"
+  },
+  {
+    "name": "Vanguard Charitable",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $2,403,000 | FY26: $0 | Total: $2,403,000"
+  },
+  {
+    "name": "Koum Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $100,000 | FY26: $1,250,000 | Total: $1,350,000"
+  },
+  {
+    "name": "Bloomberg Philanthropies",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $0 | FY26: $1,000,000 | Total: $1,000,000"
+  },
+  {
+    "name": "Koret Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $1,000,000 | FY26: $0 | Total: $1,000,000"
+  },
+  {
+    "name": "J.P. Morgan Charitable Giving Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $905,000 | FY26: $0 | Total: $905,000"
+  },
+  {
+    "name": "Jewish National Fund - USA",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $750,000 | FY26: $125,000 | Total: $875,000"
+  },
+  {
+    "name": "JMT Charitable Foundation (via JNF DAF)",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $350,000 | FY26: $500,000 | Total: $850,000"
+  },
+  {
+    "name": "Kirsh Foundation Holdings Limited",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $800,000 | FY26: $0 | Total: $800,000"
+  },
+  {
+    "name": "one8 Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $800,000 | FY26: $0 | Total: $800,000"
+  },
+  {
+    "name": "Schwab Charitable",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $770,000 | FY26: $0 | Total: $770,000"
+  },
+  {
+    "name": "Martin Geller & Lauren Schor Charitable Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $0 | FY26: $750,000 | Total: $750,000"
+  },
+  {
+    "name": "American Endowment Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $676,500 | FY26: $0 | Total: $676,500"
+  },
+  {
+    "name": "The Tepper Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $350,000 | FY26: $250,000 | Total: $600,000"
+  },
+  {
+    "name": "The Paul E. Singer Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $36,000 | FY26: $550,000 | Total: $586,000"
+  },
+  {
+    "name": "UJA of NY",
+    "type": "org",
+    "principals": [],
+    "notes": "Strategic Initiative Committee ($500k+) \u2014 FY25: $571,922 | FY26: $0 | Total: $571,922"
+  },
+  {
+    "name": "Fidelity Charitable",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $406,310 | FY26: $0 | Total: $406,310"
+  },
+  {
+    "name": "JCF of Greater Metrowest NJ",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $250,180 | FY26: $0 | Total: $250,180"
+  },
+  {
+    "name": "Jerome Levy Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $250,000 | FY26: $0 | Total: $250,000"
+  },
+  {
+    "name": "Michael & Susan Dell Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $250,000 | FY26: $0 | Total: $250,000"
+  },
+  {
+    "name": "William Davidson Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $250,000 | FY26: $0 | Total: $250,000"
+  },
+  {
+    "name": "The Margaret and Daniel Loeb Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $236,000 | FY26: $0 | Total: $236,000"
+  },
+  {
+    "name": "Gordon, Michael",
+    "type": "individual",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $200,000 | FY26: $0 | Total: $200,000"
+  },
+  {
+    "name": "Michael Gordon",
+    "type": "individual",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $0 | FY26: $200,000 | Total: $200,000"
+  },
+  {
+    "name": "The Mark Anla Cheng Kingdon Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $200,000 | FY26: $0 | Total: $200,000"
+  },
+  {
+    "name": "Doris & Stanley Tananbaum Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $75,000 | Total: $175,000"
+  },
+  {
+    "name": "The Lindy Snider Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $160,000 | FY26: $0 | Total: $160,000"
+  },
+  {
+    "name": "Paula & Jerry Gottesman Family Supporting Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $0 | FY26: $150,000 | Total: $150,000"
+  },
+  {
+    "name": "Vanguard Charitable : Vanguard Charitable (anonymous donor)",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $0 | FY26: $150,000 | Total: $150,000"
+  },
+  {
+    "name": "Richard Bakal (South Dakota Trust)",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $135,000 | FY26: $0 | Total: $135,000"
+  },
+  {
+    "name": "Jewish Community Federation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $115,000 | FY26: $10,000 | Total: $125,000"
+  },
+  {
+    "name": "Jewish Community Foundation of Los Angeles",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $112,500 | FY26: $0 | Total: $112,500"
+  },
+  {
+    "name": "Donors Trust (Anonymous)",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,180 | FY26: $0 | Total: $100,180"
+  },
+  {
+    "name": "Debode/Gottesman Family DAF",
+    "type": "individual",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $0 | FY26: $100,000 | Total: $100,000"
+  },
+  {
+    "name": "Feldman Foundation CA",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $50,000 | FY26: $50,000 | Total: $100,000"
+  },
+  {
+    "name": "Gottesman, Archie (Debode/Gottesman Family Donor Advised Fund)",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "Howard and Geraldine Polinger Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "Leder Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "Leonard Abramson",
+    "type": "individual",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "The David Berg Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "The Gottesman Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "The Joseph Meyerhoff Fund, Inc",
+    "type": "org",
+    "principals": [],
+    "notes": "Chairman's Council ($100k+) \u2014 FY25: $100,000 | FY26: $0 | Total: $100,000"
+  },
+  {
+    "name": "Anonymous Unknown donor",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $99,196 | Total: $99,196"
+  },
+  {
+    "name": "Alan Meltzer",
+    "type": "individual",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $30,000 | FY26: $50,000 | Total: $80,000"
+  },
+  {
+    "name": "Lisa & Douglas Goldman Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $75,000 | FY26: $0 | Total: $75,000"
+  },
+  {
+    "name": "Newton and Rochelle Becker Charitable Trust",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $65,000 | FY26: $0 | Total: $65,000"
+  },
+  {
+    "name": "The Sarah and Daniel Rueven Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $25,000 | FY26: $36,000 | Total: $61,000"
+  },
+  {
+    "name": "CJP Combined Jewish Philanthropies",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $60,000 | FY26: $0 | Total: $60,000"
+  },
+  {
+    "name": "Rachel Leah Bernstein",
+    "type": "individual",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $60,000 | Total: $60,000"
+  },
+  {
+    "name": "The Moses Feldman Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $60,000 | Total: $60,000"
+  },
+  {
+    "name": "Adam and Gila Milstein Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $46,000 | FY26: $10,000 | Total: $56,000"
+  },
+  {
+    "name": "Adam and Gila Milstein Family Charitable Fund of the JCF of LA",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $18,000 | FY26: $36,000 | Total: $54,000"
+  },
+  {
+    "name": "Atlanta Jewish Foundation (Zalik Foundation Fund)",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $51,800 | FY26: $0 | Total: $51,800"
+  },
+  {
+    "name": "Alan & Annette Leve Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $50,000 | FY26: $0 | Total: $50,000"
+  },
+  {
+    "name": "Bikoff Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $50,000 | Total: $50,000"
+  },
+  {
+    "name": "Circle Of Service Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $50,000 | FY26: $0 | Total: $50,000"
+  },
+  {
+    "name": "Glen E. Tullman Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $50,000 | Total: $50,000"
+  },
+  {
+    "name": "Greenberg, Alyssa & Clifford",
+    "type": "individual",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $50,000 | FY26: $0 | Total: $50,000"
+  },
+  {
+    "name": "Harvey M. and Lyn P. Meyerhoff Fund, Inc",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $50,000 | Total: $50,000"
+  },
+  {
+    "name": "Jewish Foundation of Cincinnati",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $50,000 | FY26: $0 | Total: $50,000"
+  },
+  {
+    "name": "Micah Philanthropies",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $50,000 | FY26: $0 | Total: $50,000"
+  },
+  {
+    "name": "Morgan Stanley Bloome Family Charitable Trust",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $25,000 | FY26: $25,000 | Total: $50,000"
+  },
+  {
+    "name": "The Alyssa & Clifford Greenberg Family Char Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $50,000 | Total: $50,000"
+  },
+  {
+    "name": "The Naomi Prawer Kadar Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $50,000 | FY26: $0 | Total: $50,000"
+  },
+  {
+    "name": "THE RUSSELL BERRIE FOUNDATION",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $50,000 | Total: $50,000"
+  },
+  {
+    "name": "Revv Fundraising",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $48,945 | FY26: $0 | Total: $48,945"
+  },
+  {
+    "name": "The Leon Levine Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $40,000 | FY26: $0 | Total: $40,000"
+  },
+  {
+    "name": "Lee and Valerie Shapiro Famly Charitable fund",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $35,000 | Total: $35,000"
+  },
+  {
+    "name": "Arthur M. Blank Family Foundation Molly Blank Fund",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $30,000 | FY26: $0 | Total: $30,000"
+  },
+  {
+    "name": "Alan and Amy Meltzer Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $25,000 | Total: $25,000"
+  },
+  {
+    "name": "Alan B. Slifka Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $25,000 | FY26: $0 | Total: $25,000"
+  },
+  {
+    "name": "Nash Family Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $25,000 | FY26: $0 | Total: $25,000"
+  },
+  {
+    "name": "The Jay Snider Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $25,000 | FY26: $0 | Total: $25,000"
+  },
+  {
+    "name": "The March Forth Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $25,000 | Total: $25,000"
+  },
+  {
+    "name": "The Milstein Family CF",
+    "type": "individual",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $0 | FY26: $25,000 | Total: $25,000"
+  },
+  {
+    "name": "The Morningstar Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "National Council ($25k+) \u2014 FY25: $25,000 | FY26: $0 | Total: $25,000"
+  },
+  {
+    "name": "Haim Saban",
+    "type": "individual",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $22,383 | FY26: $0 | Total: $22,383"
+  },
+  {
+    "name": "Jewish Federation of Cleveland",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $21,980 | FY26: $0 | Total: $21,980"
+  },
+  {
+    "name": "The Howard and Jennifer Michaels Family Foundation Inc",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $0 | FY26: $20,000 | Total: $20,000"
+  },
+  {
+    "name": "The Lisa and Michael Leffell Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $20,000 | FY26: $0 | Total: $20,000"
+  },
+  {
+    "name": "Mayberg Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $18,000 | FY26: $0 | Total: $18,000"
+  },
+  {
+    "name": "Michael Teplitzky",
+    "type": "individual",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $18,000 | FY26: $0 | Total: $18,000"
+  },
+  {
+    "name": "The Beverly Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $18,000 | FY26: $0 | Total: $18,000"
+  },
+  {
+    "name": "University of Cincinnati",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $16,500 | FY26: $0 | Total: $16,500"
+  },
+  {
+    "name": "UJA - JCC Greenwich",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $0 | FY26: $15,000 | Total: $15,000"
+  },
+  {
+    "name": "Charles & Mildred Schnurmacher Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "Evonne Schnitzer",
+    "type": "individual",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $0 | FY26: $10,000 | Total: $10,000"
+  },
+  {
+    "name": "Freda E. Linderman Trust",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "Hilibrand Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "JBlair /Tena Frank Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $0 | FY26: $10,000 | Total: $10,000"
+  },
+  {
+    "name": "Leon Lowenstein Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "Reagan Silber",
+    "type": "individual",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "Roberta Abrams",
+    "type": "individual",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $0 | FY26: $10,000 | Total: $10,000"
+  },
+  {
+    "name": "The Allen A Stein Fam Fndtn Inc",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "The Levitt Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "The Rosenfeld Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $10,000 | FY26: $0 | Total: $10,000"
+  },
+  {
+    "name": "Impact Forum Foundation",
+    "type": "org",
+    "principals": [],
+    "notes": "$10k+ \u2014 FY25: $7,500 | FY26: $0 | Total: $7,500"
+  }
+]

@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = ["npm install", "npm --prefix client install", "npm --prefix server install"]
+
+[phases.build]
+# db push is used instead of migrate deploy so the repo has no migrations
+# folder to manage — fine for a 2–5 person internal tool. If you later want
+# full migration history, run `prisma migrate dev --name init` locally once,
+# commit server/prisma/migrations/, and swap this for prisma:migrate-deploy.
+cmds = [
+  "npm --prefix server run prisma:generate",
+  "npm --prefix server run prisma:deploy",
+  "npm --prefix client run build"
+]
+
+[start]
+cmd = "node server/index.js"

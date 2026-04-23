@@ -1,0 +1,120 @@
+// ICC Donor Intelligence — Prisma schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  member
+}
+
+enum ProspectStatus {
+  hot
+  warm
+  cold
+  connected
+}
+
+enum DonorType {
+  org
+  individual
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String       @map("password_hash")
+  name          String
+  role          Role         @default(member)
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  prospectsAdded Prospect[]  @relation("ProspectAddedBy")
+  notes          Note[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Donor {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  type        DonorType @default(org)
+  principals  String[]
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("donors")
+  @@index([name])
+}
+
+model Prospect {
+  id                    String         @id @default(cuid())
+  name                  String
+  status                ProspectStatus @default(cold)
+  tier                  Int            @default(3)
+  age                   Int?
+  location              String?
+  undergrad             String?
+  grad                  String?
+  netWorth              String?        @map("net_worth")
+  netWorthSource        String?        @map("net_worth_source")
+  occupation            String?
+  previousRoles         String[]       @map("previous_roles")
+  campusConnections     String[]       @map("campus_connections")
+  philanthropicFootprint String[]      @map("philanthropic_footprint")
+  oct7Signals           String?        @map("oct7_signals")
+  children              String?
+  spouse                String?
+  personalConnections   String?        @map("personal_connections")
+  iccNetworkMatches     String[]       @map("icc_network_matches")
+  connectionDetail      String?        @map("connection_detail")
+  contacted             Boolean        @default(false)
+  lastContactDate       DateTime?      @map("last_contact_date") @db.Date
+  contactResponse       String?        @map("contact_response")
+  addedById             String?        @map("added_by")
+  addedBy               User?          @relation("ProspectAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  notes                 Note[]
+  auditLogs             AuditLog[]
+
+  @@map("prospects")
+  @@index([status])
+  @@index([tier])
+  @@index([name])
+}
+
+model Note {
+  id         String    @id @default(cuid())
+  prospectId String    @map("prospect_id")
+  prospect   Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("notes")
+  @@index([prospectId])
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  prospectId String?   @map("prospect_id")
+  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  userId     String?   @map("user_id")
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  detail     String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+  @@index([prospectId])
+  @@index([createdAt])
+}

@@ -1,0 +1,25 @@
+{
+  "name": "icc-donor-intel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ICC Donor Intelligence — CRM and AI research platform",
+  "scripts": {
+    "install:all": "npm install && npm --prefix client install && npm --prefix server install",
+    "postinstall": "npm --prefix client install && npm --prefix server install",
+    "build:client": "npm --prefix client run build",
+    "prisma:generate": "npm --prefix server run prisma:generate",
+    "prisma:deploy": "npm --prefix server run prisma:deploy",
+    "build": "npm run prisma:generate && npm run prisma:deploy && npm run build:client",
+    "start": "node server/index.js",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "seed": "npm --prefix server run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

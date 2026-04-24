@@ -49,7 +49,28 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-async function runSeedOnBoot() {
+// Sync the Prisma schema to the database at startup. We do this here (not at
+// build time) because Railway's internal Postgres network is only available
+// once the service is actually running.
+function runDbPushOnBoot() {
+  if (process.env.RUN_DB_PUSH_ON_START === 'false') return;
+  try {
+    const { execSync } = require('child_process');
+    console.log('[server] running prisma db push...');
+    execSync('npx prisma db push --accept-data-loss --skip-generate', {
+      cwd: __dirname,
+      stdio: 'inherit',
+      env: process.env,
+    });
+    console.log('[server] prisma db push complete');
+  } catch (e) {
+    // Log but do not crash — if the schema is already in sync on a restart,
+    // we still want the server to come up.
+    console.warn('[server] prisma db push failed (continuing):', e.message);
+  }
+}
+
+function runSeedOnBoot() {
   if (process.env.RUN_SEED_ON_START === 'false') return;
   try {
     const { spawn } = require('child_process');
@@ -64,6 +85,7 @@ async function runSeedOnBoot() {
   }
 }
 
+runDbPushOnBoot();
 runSeedOnBoot();
 app.listen(PORT, () => {
   console.log(`[server] listening on ${PORT}`);

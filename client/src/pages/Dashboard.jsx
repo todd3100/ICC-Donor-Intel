@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ProspectList from '../components/ProspectList.jsx';
 import DonorList from '../components/DonorList.jsx';
 import UsersAdmin from '../components/UsersAdmin.jsx';
+import ConnectionMap from '../components/ConnectionMap.jsx';
 import { api } from '../api.js';
 
 export default function Dashboard({ user, onLogout }) {
@@ -27,6 +28,7 @@ export default function Dashboard({ user, onLogout }) {
       <div className="tabs">
         <button className={`tab ${tab === 'prospects' ? 'active' : ''}`} onClick={() => setTab('prospects')}>Prospects</button>
         <button className={`tab ${tab === 'donors' ? 'active' : ''}`} onClick={() => setTab('donors')}>ICC Donor Network</button>
+        <button className={`tab ${tab === 'network' ? 'active' : ''}`} onClick={() => setTab('network')}>Connection Map</button>
         {user.role === 'admin' && (
           <button className={`tab ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}>Users</button>
         )}
@@ -35,6 +37,7 @@ export default function Dashboard({ user, onLogout }) {
       <div className="content">
         {tab === 'prospects' && <ProspectList user={user} />}
         {tab === 'donors' && <DonorList user={user} />}
+        {tab === 'network' && <ConnectionMap user={user} />}
         {tab === 'users' && user.role === 'admin' && <UsersAdmin />}
       </div>
     </div>

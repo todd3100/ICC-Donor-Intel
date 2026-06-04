@@ -6,10 +6,14 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
+// Note: researchBulk must be required BEFORE prospects, because prospects.js
+// requires enqueueBulkResearch from researchBulk for the CSV import auto-trigger.
+const researchBulkRoutes = require('./routes/researchBulk');
 const prospectsRoutes = require('./routes/prospects');
 const donorsRoutes = require('./routes/donors');
 const notesRoutes = require('./routes/notes');
 const researchRoutes = require('./routes/research');
+const networkRoutes = require('./routes/network');
 
 const app = express();
 
@@ -30,6 +34,8 @@ app.use('/api/prospects', prospectsRoutes);
 app.use('/api/donors', donorsRoutes);
 app.use('/api', notesRoutes);
 app.use('/api', researchRoutes);
+app.use('/api', researchBulkRoutes);
+app.use('/api', networkRoutes);
 
 // Serve the built React client from /client/dist in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
@@ -49,28 +55,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
-// Sync the Prisma schema to the database at startup. We do this here (not at
-// build time) because Railway's internal Postgres network is only available
-// once the service is actually running.
-function runDbPushOnBoot() {
-  if (process.env.RUN_DB_PUSH_ON_START === 'false') return;
-  try {
-    const { execSync } = require('child_process');
-    console.log('[server] running prisma db push...');
-    execSync('npx prisma db push --accept-data-loss --skip-generate', {
-      cwd: __dirname,
-      stdio: 'inherit',
-      env: process.env,
-    });
-    console.log('[server] prisma db push complete');
-  } catch (e) {
-    // Log but do not crash — if the schema is already in sync on a restart,
-    // we still want the server to come up.
-    console.warn('[server] prisma db push failed (continuing):', e.message);
-  }
-}
-
-function runSeedOnBoot() {
+async function runSeedOnBoot() {
   if (process.env.RUN_SEED_ON_START === 'false') return;
   try {
     const { spawn } = require('child_process');
@@ -85,7 +70,6 @@ function runSeedOnBoot() {
   }
 }
 
-runDbPushOnBoot();
 runSeedOnBoot();
 app.listen(PORT, () => {
   console.log(`[server] listening on ${PORT}`);

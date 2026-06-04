@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Check, AlertTriangle, Zap } from 'lucide-react';
 import { api } from '../api.js';
 import ProspectDetail from './ProspectDetail.jsx';
 import AddProspectModal from './AddProspectModal.jsx';
@@ -17,6 +18,10 @@ export default function ProspectList({ user }) {
   const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
   const [selectedId, setSelectedId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkJob, setBulkJob] = useState(null);
+  const [bulkToast, setBulkToast] = useState('');
+  const pollRef = useRef(null);
 
   async function load() {
     setLoading(true);
@@ -38,6 +43,60 @@ export default function ProspectList({ user }) {
   }
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [q, statusFilter, tierFilter, iccMatchFilter, contactedFilter]);
+
+  // On mount: see if a bulk job is already running (e.g. someone refreshed)
+  useEffect(() => {
+    api.get('/api/research/bulk/status').then(({ job }) => {
+      if (job?.running) {
+        setBulkJob(job);
+        startPolling();
+      }
+    }).catch(() => {});
+    return () => stopPolling();
+    // eslint-disable-next-line
+  }, []);
+
+  function startPolling() {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const { job } = await api.get('/api/research/bulk/status');
+        setBulkJob(job);
+        if (!job.running) {
+          stopPolling();
+          setBulkToast(`Research complete — ${job.completed} updated, ${job.failed} failed.`);
+          setTimeout(() => setBulkToast(''), 6000);
+          load();
+        }
+      } catch (e) {
+        // ignore transient
+      }
+    }, 2000);
+  }
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  const unresearchedCount = useMemo(() => prospects.filter((p) => !p.aiResearchCompleted && !p.aiResearchError).length, [prospects]);
+
+  async function triggerBulk() {
+    setShowBulkConfirm(false);
+    try {
+      const res = await api.post('/api/research/bulk', {});
+      if (res.accepted) {
+        setBulkJob({ running: true, total: res.total, completed: 0, failed: 0, currentName: null });
+        startPolling();
+      } else {
+        setBulkToast(res.message || 'No prospects to research.');
+        setTimeout(() => setBulkToast(''), 4000);
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   const sorted = useMemo(() => {
     const rows = [...prospects];
@@ -83,10 +142,26 @@ export default function ProspectList({ user }) {
           <option value="false">Not contacted</option>
         </select>
         <div style={{ flex: 1 }} />
+        {user.role === 'admin' && (
+          <button className="btn" onClick={() => setShowBulkConfirm(true)} disabled={bulkJob?.running}>
+            {bulkJob?.running ? <><span className="spinner" /> Researching…</> : `⚡ Run Bulk Research`}
+          </button>
+        )}
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add Prospect</button>
       </div>
 
+      {bulkToast && <div className="alert alert-success">{bulkToast}</div>}
       {error && <div className="alert alert-error">{error}</div>}
+
+      {bulkJob?.running && (
+        <div className="bulk-progress">
+          <div className="meta">
+            <span>Researching {bulkJob.currentName || '…'} ({bulkJob.completed + bulkJob.failed} of {bulkJob.total})</span>
+            <span>{Math.round(((bulkJob.completed + bulkJob.failed) / Math.max(bulkJob.total, 1)) * 100)}%</span>
+          </div>
+          <div className="bar-track"><div className="bar-fill" style={{ width: `${((bulkJob.completed + bulkJob.failed) / Math.max(bulkJob.total, 1)) * 100}%` }} /></div>
+        </div>
+      )}
 
       {loading ? (
         <div className="empty"><span className="spinner" /></div>
@@ -102,6 +177,7 @@ export default function ProspectList({ user }) {
               <th onClick={() => toggleSort('netWorth')}>Net Worth</th>
               <th onClick={() => toggleSort('location')}>Location</th>
               <th>ICC Match</th>
+              <th>Research</th>
               <th onClick={() => toggleSort('updatedAt')}>Updated</th>
             </tr>
           </thead>
@@ -113,7 +189,12 @@ export default function ProspectList({ user }) {
                 <td><span className="tier">Tier {p.tier}</span></td>
                 <td className="mono">{p.netWorth || '—'}</td>
                 <td>{p.location || '—'}</td>
-                <td>{(p.iccNetworkMatches || []).length > 0 ? <span className="icc-match">⚡ {p.iccNetworkMatches.length}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                <td>{(p.iccNetworkMatches || []).length > 0 ? <span className="icc-match"><Zap size={12} /> {p.iccNetworkMatches.length}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                <td>
+                  {p.aiResearchCompleted && !p.aiResearchError && <span className="research-icon ok" title="Research complete"><Check size={14} /></span>}
+                  {p.aiResearchError && <span className="research-icon err" title={p.aiResearchErrorMsg || 'Research error'}><AlertTriangle size={14} /></span>}
+                  {!p.aiResearchCompleted && !p.aiResearchError && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                </td>
                 <td className="mono" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{formatDate(p.updatedAt)}</td>
               </tr>
             ))}
@@ -135,6 +216,25 @@ export default function ProspectList({ user }) {
           onClose={() => setShowAdd(false)}
           onCreated={(p) => { setShowAdd(false); load(); setSelectedId(p.id); }}
         />
+      )}
+
+      {showBulkConfirm && (
+        <div className="modal-backdrop" onClick={() => setShowBulkConfirm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Run bulk AI research?</h2>
+            <div className="modal-confirm-body">
+              This will run AI research on <strong>{unresearchedCount}</strong> unresearched prospect{unresearchedCount !== 1 ? 's' : ''}.<br />
+              Estimated time: ~<strong>{Math.ceil((unresearchedCount * 17) / 60)} min</strong> ({unresearchedCount} × ~17s).<br />
+              Research runs in the background — you can keep using the app.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-ghost" onClick={() => setShowBulkConfirm(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={triggerBulk} disabled={unresearchedCount === 0}>
+                {unresearchedCount === 0 ? 'Nothing to research' : 'Start research'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

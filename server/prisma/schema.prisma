@@ -74,6 +74,10 @@ model Prospect {
   personalConnections   String?        @map("personal_connections")
   iccNetworkMatches     String[]       @map("icc_network_matches")
   connectionDetail      String?        @map("connection_detail")
+  aiResearchCompleted   Boolean        @default(false) @map("ai_research_completed")
+  aiResearchLastRun     DateTime?      @map("ai_research_last_run")
+  aiResearchError       Boolean        @default(false) @map("ai_research_error")
+  aiResearchErrorMsg    String?        @map("ai_research_error_msg")
   contacted             Boolean        @default(false)
   lastContactDate       DateTime?      @map("last_contact_date") @db.Date
   contactResponse       String?        @map("contact_response")

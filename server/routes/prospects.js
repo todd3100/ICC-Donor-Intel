@@ -1,9 +1,19 @@
 const express = require('express');
+const multer = require('multer');
+const { parse } = require('csv-parse/sync');
 const prisma = require('../lib/prisma');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { enqueueBulkResearch } = require('./researchBulk');
 
 const router = express.Router();
 router.use(requireAuth);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+const VALID_STATUSES = new Set(['hot', 'warm', 'cold', 'connected']);
 
 // Fields the client is allowed to write
 const WRITABLE = [
@@ -164,6 +174,93 @@ router.patch('/:id', async (req, res) => {
   } catch (e) {
     console.error('[prospects/update]', e);
     res.status(500).json({ error: 'Failed to update prospect' });
+  }
+});
+
+// CSV import for prospects
+// Columns supported (header names case-insensitive): name, status, tier, age, location,
+// occupation, undergrad, grad, netWorth (or net_worth), netWorthSource (or net_worth_source).
+// On success, fires a background bulk-research job over the newly created prospect IDs.
+router.post('/import', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    let records;
+    try {
+      records = parse(req.file.buffer, {
+        columns: (header) => header.map((h) => h.trim().toLowerCase().replace(/[\s_-]+/g, '')),
+        skip_empty_lines: true,
+        trim: true,
+        relax_column_count: true,
+      });
+    } catch (parseErr) {
+      return res.status(400).json({ error: 'Could not parse CSV: ' + parseErr.message });
+    }
+
+    let added = 0, skipped = 0;
+    const errors = [];
+    const newIds = [];
+
+    for (const [i, row] of records.entries()) {
+      const name = (row.name || '').trim();
+      if (!name) { skipped++; continue; }
+
+      const statusRaw = (row.status || 'cold').toLowerCase().trim();
+      const status = VALID_STATUSES.has(statusRaw) ? statusRaw : 'cold';
+      const tierNum = Number(row.tier);
+      const tier = Number.isFinite(tierNum) && tierNum >= 1 && tierNum <= 3 ? tierNum : 3;
+      const ageNum = row.age === '' || row.age == null ? null : Number(row.age);
+      const age = Number.isFinite(ageNum) ? ageNum : null;
+
+      const data = {
+        name,
+        status,
+        tier,
+        age,
+        location: (row.location || '').trim() || null,
+        occupation: (row.occupation || '').trim() || null,
+        undergrad: (row.undergrad || '').trim() || null,
+        grad: (row.grad || '').trim() || null,
+        netWorth: (row.networth || '').trim() || null,
+        netWorthSource: (row.networthsource || '').trim() || null,
+        addedById: req.user.id,
+      };
+
+      try {
+        const p = await prisma.$transaction(async (tx) => {
+          const created = await tx.prospect.create({ data });
+          await tx.auditLog.create({
+            data: {
+              prospectId: created.id,
+              userId: req.user.id,
+              action: 'created_via_import',
+              detail: `Imported ${created.name} via CSV`,
+            },
+          });
+          return created;
+        });
+        newIds.push(p.id);
+        added++;
+      } catch (rowErr) {
+        errors.push({ row: i + 2, error: rowErr.message });
+        skipped++;
+      }
+    }
+
+    // Fire-and-forget: kick off bulk research on the new IDs. Does nothing if job already running.
+    let researchQueued = false;
+    if (newIds.length > 0) {
+      try {
+        researchQueued = await enqueueBulkResearch(newIds, req.user.id);
+      } catch (qErr) {
+        console.error('[prospects/import] research enqueue failed:', qErr.message);
+      }
+    }
+
+    res.json({ added, skipped, errors, newIds, researchQueued });
+  } catch (e) {
+    console.error('[prospects/import]', e);
+    res.status(500).json({ error: 'Import failed' });
   }
 });
 

@@ -18,7 +18,18 @@ const { researchProspect, buildApplyFields } = require('../lib/researchProspect'
 const router = express.Router();
 router.use(requireAuth);
 
-const DELAY_MS = 2000;
+// Anthropic Tier 1 = 30,000 input tokens per minute. Each prospect call uses
+// roughly 8-15k input tokens (system prompt + donor list + web_search results),
+// so we pace ~20s between starts to stay under the rolling 60s window.
+// If you upgrade to Tier 2 (80k ITPM), you can lower this to ~6000ms.
+const DELAY_MS = 20000;
+
+// On a 429 rate-limit error, wait this long before retrying. Anthropic also returns
+// a `retry-after` header (in seconds) which we honor when present.
+const RATE_LIMIT_RETRY_MS = 30000;
+const MAX_RATE_LIMIT_RETRIES = 2;
+
+async function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 const bulkJob = {
   running: false,
@@ -87,7 +98,29 @@ async function runBulk(ids, triggeredBy, mode) {
         bulkJob.currentId = id;
         bulkJob.currentName = prospect.name;
 
-        const { data, resolvedMatchIds } = await researchProspect(prospect);
+        // Inline retry-on-429 with exponential backoff, honoring retry-after header
+        let data, resolvedMatchIds;
+        {
+          let attempt = 0;
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            try {
+              ({ data, resolvedMatchIds } = await researchProspect(prospect));
+              break;
+            } catch (e) {
+              const is429 = e.status === 429 || /rate.?limit/i.test(e.message || '');
+              if (!is429 || attempt >= MAX_RATE_LIMIT_RETRIES) throw e;
+              attempt++;
+              const headerRetry = Number(e.headers?.['retry-after']) * 1000;
+              const waitMs = Number.isFinite(headerRetry) && headerRetry > 0
+                ? headerRetry + 2000
+                : RATE_LIMIT_RETRY_MS * attempt;
+              console.warn(`[researchBulk] 429 on ${prospect.name}, retry ${attempt}/${MAX_RATE_LIMIT_RETRIES} after ${waitMs}ms`);
+              bulkJob.currentName = `${prospect.name} (waiting ${Math.round(waitMs / 1000)}s for rate limit…)`;
+              await sleep(waitMs);
+            }
+          }
+        }
         const applyFields = buildApplyFields(data, resolvedMatchIds);
 
         // Strip undefined keys so we don't overwrite existing data with undefined
@@ -225,7 +258,7 @@ router.post('/research/bulk', requireAdmin, async (req, res) => {
     total: ids.length,
     mode,
     jobId: 'singleton',
-    estimatedSeconds: ids.length * 17, // ~15s Anthropic + 2s delay
+    estimatedSeconds: ids.length * 35, // ~15s Anthropic + 20s delay (Tier 1 pacing)
   });
 });
 

@@ -294,7 +294,7 @@ export default function ProspectList({ user }) {
                   This will run AI research on the <strong>{unresearchedCount}</strong> unresearched prospect{unresearchedCount !== 1 ? 's' : ''}.<br />
                 </>
               )}
-              Estimated time: ~<strong>{Math.ceil((targetCount * 17) / 60)} min</strong> ({targetCount} × ~17s).<br />
+              Estimated time: ~<strong>{Math.ceil((targetCount * 35) / 60)} min</strong> ({targetCount} × ~35s).<br />
               Research runs in the background — you can keep using the app.
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

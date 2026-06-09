@@ -113,7 +113,7 @@ function Legend() {
       color: 'var(--text-dim)',
     }}>
       <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 6, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.06em' }}>Legend</div>
-      <LegendRow color="#e8a23a" label="ICC Donor" />
+      <LegendRow color="#ffffff" label="ICC Donor" />
       <LegendRow color={STATUS_COLORS.hot} label="Prospect · Hot" />
       <LegendRow color={STATUS_COLORS.warm} label="Prospect · Warm" />
       <LegendRow color={STATUS_COLORS.cold} label="Prospect · Cold" />

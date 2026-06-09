@@ -11,7 +11,7 @@ const STATUS_COLORS = {
   cold: '#6b8cae',
   connected: '#4caf82',
 };
-const DONOR_COLOR = '#e8a23a';
+const DONOR_COLOR = '#ffffff';
 
 export default function ForceGraph({
   nodes,
@@ -73,8 +73,8 @@ export default function ForceGraph({
     nodeSel.append('circle')
       .attr('r', (d) => d.type === 'donor' ? 24 : 16)
       .attr('fill', (d) => d.type === 'donor' ? DONOR_COLOR : (STATUS_COLORS[d.status] || '#6b8cae'))
-      .attr('stroke', '#0a1321')
-      .attr('stroke-width', 2);
+      .attr('stroke', (d) => d.type === 'donor' ? '#e8a23a' : '#0a1321')
+      .attr('stroke-width', (d) => d.type === 'donor' ? 2.5 : 2);
 
     nodeSel.append('text')
       .text((d) => d.label)

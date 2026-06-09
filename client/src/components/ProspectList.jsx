@@ -19,6 +19,7 @@ export default function ProspectList({ user }) {
   const [selectedId, setSelectedId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkMode, setBulkMode] = useState('unresearched'); // 'unresearched' | 'all' | 'errored'
   const [bulkJob, setBulkJob] = useState(null);
   const [bulkToast, setBulkToast] = useState('');
   const pollRef = useRef(null);
@@ -80,14 +81,35 @@ export default function ProspectList({ user }) {
     }
   }
 
-  const unresearchedCount = useMemo(() => prospects.filter((p) => !p.aiResearchCompleted && !p.aiResearchError).length, [prospects]);
+  const unresearchedCount = useMemo(
+    () => prospects.filter((p) => !p.aiResearchCompleted && !p.aiResearchError).length,
+    [prospects]
+  );
+  const erroredCount = useMemo(
+    () => prospects.filter((p) => p.aiResearchError).length,
+    [prospects]
+  );
+  const totalCount = prospects.length;
+
+  const targetCount =
+    bulkMode === 'all' ? totalCount :
+    bulkMode === 'errored' ? erroredCount :
+    unresearchedCount;
 
   async function triggerBulk() {
     setShowBulkConfirm(false);
     try {
-      const res = await api.post('/api/research/bulk', {});
+      const res = await api.post('/api/research/bulk', { mode: bulkMode });
       if (res.accepted) {
-        setBulkJob({ running: true, total: res.total, completed: 0, failed: 0, currentName: null });
+        setBulkJob({
+          running: true,
+          mode: res.mode,
+          total: res.total,
+          completed: 0,
+          failed: 0,
+          currentName: null,
+          failures: [],
+        });
         startPolling();
       } else {
         setBulkToast(res.message || 'No prospects to research.');
@@ -143,9 +165,27 @@ export default function ProspectList({ user }) {
         </select>
         <div style={{ flex: 1 }} />
         {user.role === 'admin' && (
-          <button className="btn" onClick={() => setShowBulkConfirm(true)} disabled={bulkJob?.running}>
-            {bulkJob?.running ? <><span className="spinner" /> Researching…</> : `⚡ Run Bulk Research`}
-          </button>
+          <>
+            <select
+              className="select"
+              style={{ maxWidth: 220 }}
+              value={bulkMode}
+              onChange={(e) => setBulkMode(e.target.value)}
+              disabled={bulkJob?.running}
+              title="Choose which prospects to research"
+            >
+              <option value="unresearched">Unresearched only ({unresearchedCount})</option>
+              <option value="errored">Retry errored ({erroredCount})</option>
+              <option value="all">All prospects — overwrite ({totalCount})</option>
+            </select>
+            <button
+              className="btn"
+              onClick={() => setShowBulkConfirm(true)}
+              disabled={bulkJob?.running || targetCount === 0}
+            >
+              {bulkJob?.running ? <><span className="spinner" /> Researching…</> : `⚡ Run Bulk Research`}
+            </button>
+          </>
         )}
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add Prospect</button>
       </div>
@@ -157,9 +197,24 @@ export default function ProspectList({ user }) {
         <div className="bulk-progress">
           <div className="meta">
             <span>Researching {bulkJob.currentName || '…'} ({bulkJob.completed + bulkJob.failed} of {bulkJob.total})</span>
-            <span>{Math.round(((bulkJob.completed + bulkJob.failed) / Math.max(bulkJob.total, 1)) * 100)}%</span>
+            <span>
+              ✓ {bulkJob.completed} · ✕ {bulkJob.failed} ·{' '}
+              {Math.round(((bulkJob.completed + bulkJob.failed) / Math.max(bulkJob.total, 1)) * 100)}%
+            </span>
           </div>
-          <div className="bar-track"><div className="bar-fill" style={{ width: `${((bulkJob.completed + bulkJob.failed) / Math.max(bulkJob.total, 1)) * 100}%` }} /></div>
+          <div className="bar-track">
+            <div className="bar-fill" style={{ width: `${((bulkJob.completed + bulkJob.failed) / Math.max(bulkJob.total, 1)) * 100}%` }} />
+          </div>
+          {bulkJob.failures && bulkJob.failures.length > 0 && (
+            <details style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>
+              <summary style={{ cursor: 'pointer' }}>Recent failures ({bulkJob.failures.length})</summary>
+              <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                {bulkJob.failures.slice(-5).map((f, i) => (
+                  <li key={i}><strong>{f.name}:</strong> {f.error}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 
@@ -223,14 +278,29 @@ export default function ProspectList({ user }) {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Run bulk AI research?</h2>
             <div className="modal-confirm-body">
-              This will run AI research on <strong>{unresearchedCount}</strong> unresearched prospect{unresearchedCount !== 1 ? 's' : ''}.<br />
-              Estimated time: ~<strong>{Math.ceil((unresearchedCount * 17) / 60)} min</strong> ({unresearchedCount} × ~17s).<br />
+              {bulkMode === 'all' && (
+                <>
+                  This will run AI research on <strong>all {totalCount}</strong> prospects and{' '}
+                  <strong>overwrite any existing research data</strong>.<br />
+                </>
+              )}
+              {bulkMode === 'errored' && (
+                <>
+                  This will retry research on the <strong>{erroredCount}</strong> prospect{erroredCount !== 1 ? 's' : ''} that previously errored.<br />
+                </>
+              )}
+              {bulkMode === 'unresearched' && (
+                <>
+                  This will run AI research on the <strong>{unresearchedCount}</strong> unresearched prospect{unresearchedCount !== 1 ? 's' : ''}.<br />
+                </>
+              )}
+              Estimated time: ~<strong>{Math.ceil((targetCount * 17) / 60)} min</strong> ({targetCount} × ~17s).<br />
               Research runs in the background — you can keep using the app.
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="btn btn-ghost" onClick={() => setShowBulkConfirm(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={triggerBulk} disabled={unresearchedCount === 0}>
-                {unresearchedCount === 0 ? 'Nothing to research' : 'Start research'}
+              <button className="btn btn-primary" onClick={triggerBulk} disabled={targetCount === 0}>
+                {targetCount === 0 ? 'Nothing to research' : 'Start research'}
               </button>
             </div>
           </div>

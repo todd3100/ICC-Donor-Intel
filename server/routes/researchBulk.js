@@ -1,5 +1,10 @@
 // Bulk AI research — sequential processor with module-level job state.
 // POST /api/research/bulk        (admin only)        — kicks off job, returns immediately
+//   body: { mode: 'unresearched' | 'all' | 'errored', prospectIds?: string[] }
+//     - 'unresearched' (default): only prospects with aiResearchCompleted=false AND aiResearchError=false
+//     - 'all': every prospect, overwrites existing research
+//     - 'errored': only prospects with aiResearchError=true (retry failures)
+//   If prospectIds is provided, mode is ignored and those exact IDs are processed.
 // GET  /api/research/bulk/status (any authed user)   — current job state for polling
 //
 // Concurrency model: one job at a time, module-level singleton. Resets on dyno restart.
@@ -17,42 +22,52 @@ const DELAY_MS = 2000;
 
 const bulkJob = {
   running: false,
+  mode: null,
   total: 0,
   completed: 0,
   failed: 0,
   currentName: null,
   currentId: null,
   failedIds: [],
+  failures: [], // [{ id, name, error }]
   startedAt: null,
   finishedAt: null,
   triggeredBy: null,
 };
 
 function snapshot() {
-  return { ...bulkJob, failedIds: [...bulkJob.failedIds] };
+  return {
+    ...bulkJob,
+    failedIds: [...bulkJob.failedIds],
+    failures: bulkJob.failures.slice(-20), // cap payload size
+  };
 }
 
 function resetJob() {
   bulkJob.running = false;
+  bulkJob.mode = null;
   bulkJob.total = 0;
   bulkJob.completed = 0;
   bulkJob.failed = 0;
   bulkJob.currentName = null;
   bulkJob.currentId = null;
   bulkJob.failedIds = [];
+  bulkJob.failures = [];
   bulkJob.startedAt = null;
   bulkJob.finishedAt = null;
   bulkJob.triggeredBy = null;
 }
 
-async function runBulk(ids, triggeredBy) {
+async function runBulk(ids, triggeredBy, mode) {
   bulkJob.running = true;
+  bulkJob.mode = mode || 'custom';
   bulkJob.total = ids.length;
   bulkJob.completed = 0;
   bulkJob.failed = 0;
   bulkJob.currentName = null;
   bulkJob.currentId = null;
   bulkJob.failedIds = [];
+  bulkJob.failures = [];
   bulkJob.startedAt = new Date();
   bulkJob.finishedAt = null;
   bulkJob.triggeredBy = triggeredBy || null;
@@ -65,6 +80,7 @@ async function runBulk(ids, triggeredBy) {
         prospect = await prisma.prospect.findUnique({ where: { id } });
         if (!prospect) {
           bulkJob.failedIds.push(id);
+          bulkJob.failures.push({ id, name: '(deleted)', error: 'Prospect no longer exists' });
           bulkJob.failed++;
           continue;
         }
@@ -91,15 +107,27 @@ async function runBulk(ids, triggeredBy) {
               prospectId: id,
               userId: triggeredBy || null,
               action: 'ai_research_bulk_applied',
-              detail: 'Applied bulk AI research update to profile',
+              detail: `Applied bulk AI research update (mode=${mode || 'custom'})`,
             },
           });
         });
 
         bulkJob.completed++;
       } catch (e) {
-        console.error(`[researchBulk] prospect ${id} failed:`, e.message);
+        // Verbose logging so we can see the real failure cause in Railway logs
+        console.error(`[researchBulk] prospect ${id} (${prospect?.name || '?'}) failed:`, {
+          message: e.message,
+          code: e.code,
+          status: e.status,
+          type: e.type,
+          raw: e.raw?.slice(0, 300),
+        });
         bulkJob.failedIds.push(id);
+        bulkJob.failures.push({
+          id,
+          name: prospect?.name || '(unknown)',
+          error: (e.message || 'unknown error').slice(0, 200),
+        });
         bulkJob.failed++;
         try {
           await prisma.prospect.update({
@@ -134,8 +162,26 @@ async function runBulk(ids, triggeredBy) {
 async function enqueueBulkResearch(ids, triggeredBy) {
   if (!Array.isArray(ids) || ids.length === 0) return false;
   if (bulkJob.running) return false;
-  setImmediate(() => { runBulk(ids, triggeredBy).catch((e) => console.error('[runBulk]', e)); });
+  setImmediate(() => { runBulk(ids, triggeredBy, 'csv_import').catch((e) => console.error('[runBulk]', e)); });
   return true;
+}
+
+async function resolveIdsForMode(mode) {
+  let where;
+  if (mode === 'all') {
+    where = {}; // everyone, overwrite
+  } else if (mode === 'errored') {
+    where = { aiResearchError: true };
+  } else {
+    // 'unresearched' (default): never completed AND not currently errored
+    where = { aiResearchCompleted: false, aiResearchError: false };
+  }
+  const rows = await prisma.prospect.findMany({
+    where,
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  return rows.map((p) => p.id);
 }
 
 router.post('/research/bulk', requireAdmin, async (req, res) => {
@@ -146,27 +192,38 @@ router.post('/research/bulk', requireAdmin, async (req, res) => {
     });
   }
 
-  let ids = Array.isArray(req.body?.prospectIds) ? req.body.prospectIds.filter(Boolean) : null;
+  const body = req.body || {};
+  const explicitIds = Array.isArray(body.prospectIds) ? body.prospectIds.filter(Boolean) : null;
+  const rawMode = typeof body.mode === 'string' ? body.mode : 'unresearched';
+  const mode = ['unresearched', 'all', 'errored'].includes(rawMode) ? rawMode : 'unresearched';
 
-  if (!ids || ids.length === 0) {
-    const pending = await prisma.prospect.findMany({
-      where: { aiResearchCompleted: false, aiResearchError: false },
-      select: { id: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    ids = pending.map((p) => p.id);
+  let ids;
+  if (explicitIds && explicitIds.length > 0) {
+    ids = explicitIds;
+  } else {
+    ids = await resolveIdsForMode(mode);
   }
 
   if (ids.length === 0) {
-    return res.json({ accepted: false, total: 0, message: 'No prospects to research' });
+    return res.json({
+      accepted: false,
+      total: 0,
+      mode,
+      message: mode === 'all'
+        ? 'No prospects in the database.'
+        : mode === 'errored'
+        ? 'No errored prospects to retry.'
+        : 'No unresearched prospects.',
+    });
   }
 
   // Fire-and-forget
-  setImmediate(() => { runBulk(ids, req.user.id).catch((e) => console.error('[runBulk]', e)); });
+  setImmediate(() => { runBulk(ids, req.user.id, mode).catch((e) => console.error('[runBulk]', e)); });
 
   res.json({
     accepted: true,
     total: ids.length,
+    mode,
     jobId: 'singleton',
     estimatedSeconds: ids.length * 17, // ~15s Anthropic + 2s delay
   });
@@ -182,6 +239,15 @@ router.post('/research/bulk/reset', requireAdmin, (req, res) => {
   }
   resetJob();
   res.json({ ok: true });
+});
+
+// Admin-only: clear the error flag on all prospects so they can be retried via 'unresearched' mode.
+router.post('/research/bulk/clear-errors', requireAdmin, async (req, res) => {
+  const result = await prisma.prospect.updateMany({
+    where: { aiResearchError: true },
+    data: { aiResearchError: false, aiResearchErrorMsg: null },
+  });
+  res.json({ ok: true, cleared: result.count });
 });
 
 module.exports = router;

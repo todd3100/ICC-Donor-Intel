@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { researchProspect, MODEL } = require('../lib/researchProspect');
+const { researchProspect, temperatureFromIccCount, normalizeNetWorth, MODEL } = require('../lib/researchProspect');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -44,6 +44,21 @@ router.post('/prospects/:id/research/apply', async (req, res) => {
     if (typeof updates.personalConnections === 'string') data.personalConnections = updates.personalConnections;
     if (Array.isArray(updates.iccNetworkMatches)) data.iccNetworkMatches = updates.iccNetworkMatches;
     if (typeof updates.connectionDetail === 'string') data.connectionDetail = updates.connectionDetail;
+    if (typeof updates.netWorth === 'string') {
+      const nw = normalizeNetWorth(updates.netWorth);
+      if (nw !== undefined) data.netWorth = nw;
+    }
+
+    // Auto-recalc temperature from the final ICC connection count.
+    // Use the new value if provided, else fall back to the prospect's existing matches.
+    // Per product spec: override any previous status, including manual labels.
+    // Exception: leave a 'connected' status alone — that's an outcome label, not a heat rating.
+    const finalIccMatches = Array.isArray(data.iccNetworkMatches)
+      ? data.iccNetworkMatches
+      : (prospect.iccNetworkMatches || []);
+    if (prospect.status !== 'connected') {
+      data.status = temperatureFromIccCount(finalIccMatches.length);
+    }
 
     // Mark research as completed when the user applies an update
     data.aiResearchCompleted = true;

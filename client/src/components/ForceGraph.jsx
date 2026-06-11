@@ -73,8 +73,8 @@ export default function ForceGraph({
     nodeSel.append('circle')
       .attr('r', (d) => d.type === 'donor' ? 24 : 16)
       .attr('fill', (d) => d.type === 'donor' ? DONOR_COLOR : (STATUS_COLORS[d.status] || '#6b8cae'))
-      .attr('stroke', (d) => d.type === 'donor' ? '#e8a23a' : '#0a1321')
-      .attr('stroke-width', (d) => d.type === 'donor' ? 2.5 : 2);
+      .attr('stroke', (d) => d.type === 'donor' ? '#ffffff' : '#0a1321')
+      .attr('stroke-width', (d) => d.type === 'donor' ? 2 : 2);
 
     nodeSel.append('text')
       .text((d) => d.label)
@@ -115,11 +115,18 @@ export default function ForceGraph({
     });
 
     // Force simulation
+    //   - link distance increased (110 → 170) so connected nodes don't crowd
+    //   - charge strength made more negative so nodes repel each other harder
+    //   - collide radius = node radius (24/16) + padding (16) to guarantee no overlap
+    //   - higher iterationCount on collide makes the no-overlap constraint stricter
     const simulation = d3.forceSimulation(nodesCopy)
-      .force('link', d3.forceLink(edgesCopy).id((d) => d.id).distance((e) => 110))
-      .force('charge', d3.forceManyBody().strength((d) => d.type === 'donor' ? -700 : -220))
+      .force('link', d3.forceLink(edgesCopy).id((d) => d.id).distance(170).strength(0.4))
+      .force('charge', d3.forceManyBody().strength((d) => d.type === 'donor' ? -1200 : -500))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collide', d3.forceCollide().radius((d) => d.type === 'donor' ? 40 : 26));
+      .force('collide', d3.forceCollide()
+        .radius((d) => (d.type === 'donor' ? 24 : 16) + 16)
+        .strength(1)
+        .iterations(3));
 
     simulation.on('tick', () => {
       linkSel

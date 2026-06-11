@@ -15,7 +15,9 @@ export default function ProspectList({ user }) {
   const [tierFilter, setTierFilter] = useState('');
   const [iccMatchFilter, setIccMatchFilter] = useState('');
   const [contactedFilter, setContactedFilter] = useState('');
-  const [sort, setSort] = useState({ key: 'updatedAt', dir: 'desc' });
+  // Default sort: primary by ICC connection count (desc), secondary by last name (asc).
+  // User-initiated sorts override this temporarily.
+  const [sort, setSort] = useState({ key: 'default', dir: 'desc' });
   const [selectedId, setSelectedId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
@@ -123,9 +125,25 @@ export default function ProspectList({ user }) {
   const sorted = useMemo(() => {
     const rows = [...prospects];
     const { key, dir } = sort;
+
+    // Default two-level sort: ICC connections desc, then last name asc.
+    if (key === 'default') {
+      rows.sort((a, b) => {
+        const aIcc = (a.iccNetworkMatches || []).length;
+        const bIcc = (b.iccNetworkMatches || []).length;
+        if (aIcc !== bIcc) return bIcc - aIcc; // primary: desc by ICC count
+        return lastName(a.name).localeCompare(lastName(b.name)); // secondary: asc by last name
+      });
+      return rows;
+    }
+
     rows.sort((a, b) => {
       let av = a[key]; let bv = b[key];
       if (key === 'netWorth') { av = parseMoney(av); bv = parseMoney(bv); }
+      if (key === 'iccMatches') {
+        av = (a.iccNetworkMatches || []).length;
+        bv = (b.iccNetworkMatches || []).length;
+      }
       if (av == null) av = '';
       if (bv == null) bv = '';
       if (av < bv) return dir === 'asc' ? -1 : 1;
@@ -226,23 +244,25 @@ export default function ProspectList({ user }) {
         <table className="table">
           <thead>
             <tr>
+              <th style={{ width: 36, textAlign: 'right', color: 'var(--text-muted)' }}>#</th>
               <th onClick={() => toggleSort('name')}>Name</th>
               <th onClick={() => toggleSort('status')}>Status</th>
               <th onClick={() => toggleSort('tier')}>Tier</th>
               <th onClick={() => toggleSort('netWorth')}>Net Worth</th>
               <th onClick={() => toggleSort('location')}>Location</th>
-              <th>ICC Match</th>
+              <th onClick={() => toggleSort('iccMatches')}>ICC Match</th>
               <th>Research</th>
               <th onClick={() => toggleSort('updatedAt')}>Updated</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((p) => (
+            {sorted.map((p, i) => (
               <tr key={p.id} onClick={() => setSelectedId(p.id)}>
+                <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
                 <td className="name-cell">{p.name}</td>
                 <td><span className={`badge badge-${p.status}`}>{p.status}</span></td>
                 <td><span className="tier">Tier {p.tier}</span></td>
-                <td className="mono">{p.netWorth || '—'}</td>
+                <td className="mono">{displayNetWorth(p.netWorth)}</td>
                 <td>{p.location || '—'}</td>
                 <td>{(p.iccNetworkMatches || []).length > 0 ? <span className="icc-match"><Zap size={12} /> {p.iccNetworkMatches.length}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                 <td>
@@ -308,6 +328,32 @@ export default function ProspectList({ user }) {
       )}
     </>
   );
+}
+
+// Extract the last whitespace-separated token of a name, ignoring trailing suffixes
+// like Jr., Sr., II, III, IV. Returns lowercase for case-insensitive sort.
+function lastName(fullName) {
+  if (!fullName) return '';
+  const SUFFIXES = new Set(['jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v']);
+  const tokens = String(fullName).trim().split(/\s+/).filter(Boolean);
+  while (tokens.length > 1 && SUFFIXES.has(tokens[tokens.length - 1].toLowerCase().replace(/[,]/g, ''))) {
+    tokens.pop();
+  }
+  return (tokens[tokens.length - 1] || '').toLowerCase();
+}
+
+// Display fallback: legacy records may have "Substantial", "Family substantial",
+// "Significant wealth", etc. in netWorth. Show "Unknown" for any of these.
+function displayNetWorth(v) {
+  if (!v) return '—';
+  const lower = String(v).trim().toLowerCase();
+  if (!lower) return '—';
+  if (lower.includes('substantial') || lower.includes('significant')) return 'Unknown';
+  if (['unknown', 'undisclosed', 'not disclosed', 'not publicly disclosed',
+       'not publicly available', 'not available', 'n/a', 'na', '—', '-'].includes(lower)) {
+    return 'Unknown';
+  }
+  return v;
 }
 
 function parseMoney(s) {

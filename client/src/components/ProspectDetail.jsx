@@ -6,6 +6,7 @@ import TeamNotes from './TeamNotes.jsx';
 import ActivityLog from './ActivityLog.jsx';
 import ProspectEditForm from './ProspectEditForm.jsx';
 import ProspectMiniGraph from './ProspectMiniGraph.jsx';
+import TasksPanel from './TasksPanel.jsx';
 import { STAGES, STAGE_LABELS, STAGE_COLORS, StageBadge, displaySuggestedAsk, fmtMoney } from './ProspectList.jsx';
 
 const UNI_PATTERN = /\b(Harvard|Penn|Wharton|Columbia|Brown|Cornell|Northwestern|Yale|Princeton|Stanford|MIT|Dartmouth|Berkeley|UCLA|NYU|Duke|Chicago|Michigan|Brandeis|Hunter College|Ohio State|Stony Brook|Yeshiva University|Tel Aviv University|Jerusalem College of Technology)\b/g;
@@ -128,6 +129,11 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
                       prospect={prospect}
                       onPatch={patchProspect}
                     />
+                  </CollapsibleSection>
+
+                  {/* NEW: Tasks for this prospect */}
+                  <CollapsibleSection id={`p-${id}-tasks`} title="Tasks" defaultOpen={true}>
+                    <TasksPanel prospectId={prospect.id} currentUserName={user?.name} />
                   </CollapsibleSection>
 
                   <CollapsibleSection id={`p-${id}-campus`} title="Campus Connections">

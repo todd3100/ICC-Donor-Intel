@@ -50,6 +50,7 @@ model User {
   prospectsAdded Prospect[]  @relation("ProspectAddedBy")
   notes          Note[]
   auditLogs      AuditLog[]
+  tasksCreated   Task[]      @relation("TaskCreatedBy")
 
   @@map("users")
 }
@@ -110,6 +111,7 @@ model Prospect {
 
   notes                 Note[]
   auditLogs             AuditLog[]
+  tasks                 Task[]
 
   @@map("prospects")
   @@index([status])
@@ -129,6 +131,48 @@ model Note {
 
   @@map("notes")
   @@index([prospectId])
+}
+
+// Phase 2 — Task tracking model.
+//
+// `assignedTo` is a free-text string rather than a User foreign key so that tasks can
+// be assigned to staff members who don't have login accounts (e.g. "Jacob", "Shira",
+// "Ian", "Rose", "Elisabeth"). The UI offers known names as suggestions but also
+// accepts arbitrary strings.
+//
+// `createdById` IS a FK to User — we always know who created the task.
+model Task {
+  id           String    @id @default(cuid())
+  prospectId   String    @map("prospect_id")
+  prospect     Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  assignedTo   String?   @map("assigned_to")             // free-text staff name
+  type         TaskType  @default(other)
+  description  String
+  dueDate      DateTime? @map("due_date") @db.Date
+
+  completed    Boolean   @default(false)
+  completedAt  DateTime? @map("completed_at")
+
+  createdById  String?   @map("created_by")
+  createdBy    User?     @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("tasks")
+  @@index([prospectId])
+  @@index([assignedTo])
+  @@index([completed])
+  @@index([dueDate])
+}
+
+enum TaskType {
+  call
+  email
+  meeting
+  research
+  send_materials
+  other
 }
 
 model AuditLog {

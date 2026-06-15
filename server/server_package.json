@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js",
+    "start": "prisma db push --accept-data-loss && node index.js",
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma db push --accept-data-loss",
     "prisma:migrate-deploy": "prisma migrate deploy",

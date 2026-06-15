@@ -182,24 +182,60 @@ function roundAskAmount(n) {
   return best;
 }
 
-// Compute a suggested ask range from net worth (if known) or ICC connection count (proxy).
-// Returns { min, max } in whole dollars, or { min: null, max: null } if no signal.
-// Rules:
-//   - If net worth parseable: 0.5% to 1.0% of net worth, rounded to nice tiers.
-//   - Else: 5+ ICC connections → $50k-$100k
-//           2–4 ICC connections → $10k-$50k
-//           0–1 ICC connections → $1k-$10k
+// Compute a suggested ask range, calibrated to ICC's scale as an $18M annual organization.
+//
+// Philosophy: A single transformational gift to an $18M org tops out at ~$1.5M (≈8% of
+// annual revenue, per AFP/Lilly major-gifts guidance). Asking a billionaire for $50M is
+// fantasy — they'll laugh. The cap is what ICC can plausibly receive, not what the donor
+// could theoretically give.
+//
+// Returns { min, max } in whole dollars, or { min: null, max: null } if net worth is
+// unknown (we don't guess a number without wealth data — too easy to insult someone
+// either direction).
+//
+// Net-worth tiers (base range before ICC bump):
+//   $1B+              → $250K – $1M    (caps at ICC's transformational-gift ceiling)
+//   $100M – $1B       → $100K – $500K  (major principal-gift territory)
+//   $25M – $100M      → $50K – $250K
+//   $5M – $25M        → $25K – $100K
+//   $1M – $5M         → $10K – $50K
+//   <$1M              → $5K – $25K
+//
+// ICC connection bump (added to BOTH ends of the range; tied to network strength):
+//   5+ ICC matches    → +$25K min / +$50K max
+//   2–4 ICC matches   → +$5K min / +$10K max
+//   0–1 matches       → no bump
+//
+// Hard cap: $1.5M on the max under all circumstances. The user can manually override
+// for a true principal-gift solicitation (suggestedAskOverride flag).
+const ASK_HARD_CAP = 1_500_000;
+
 function computeSuggestedAsk({ netWorth, iccConnectionCount }) {
   const nw = parseNetWorthDollars(netWorth);
-  if (nw && nw > 0) {
-    const min = roundAskAmount(nw * 0.005);
-    const max = roundAskAmount(nw * 0.01);
-    return { min, max: Math.max(min, max) };
-  }
+
+  // No net worth data → no suggestion at all. Per ICC team preference, we don't
+  // guess from ICC connections alone when wealth signal is missing.
+  if (!nw || nw <= 0) return { min: null, max: null };
+
+  // Pick the base range by net worth tier.
+  let min, max;
+  if (nw >= 1_000_000_000)        { min = 250_000; max = 1_000_000; }
+  else if (nw >= 100_000_000)     { min = 100_000; max =   500_000; }
+  else if (nw >=  25_000_000)     { min =  50_000; max =   250_000; }
+  else if (nw >=   5_000_000)     { min =  25_000; max =   100_000; }
+  else if (nw >=   1_000_000)     { min =  10_000; max =    50_000; }
+  else                            { min =   5_000; max =    25_000; }
+
+  // ICC connection bump — strong network warrants a stretch ask.
   const c = Number(iccConnectionCount) || 0;
-  if (c >= 5)  return { min: 50_000, max: 100_000 };
-  if (c >= 2)  return { min: 10_000, max: 50_000 };
-  return { min: 1_000, max: 10_000 };
+  if (c >= 5)      { min += 25_000; max += 50_000; }
+  else if (c >= 2) { min +=  5_000; max += 10_000; }
+
+  // Apply hard cap.
+  if (max > ASK_HARD_CAP) max = ASK_HARD_CAP;
+  if (min > max)          min = max;
+
+  return { min, max };
 }
 
 // Build the writable fields object to apply research data to a prospect record.

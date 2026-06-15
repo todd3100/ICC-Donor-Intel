@@ -20,6 +20,20 @@ enum ProspectStatus {
   connected
 }
 
+// Phase 2: pipeline / moves management stages.
+// Ordered: identified -> researched -> warm_intro_made -> meeting_scheduled
+//          -> cultivation -> ask_made -> closed_won -> closed_declined
+enum ProspectStage {
+  identified
+  researched
+  warm_intro_made
+  meeting_scheduled
+  cultivation
+  ask_made
+  closed_won
+  closed_declined
+}
+
 enum DonorType {
   org
   individual
@@ -57,6 +71,14 @@ model Prospect {
   id                    String         @id @default(cuid())
   name                  String
   status                ProspectStatus @default(cold)
+  // Phase 2 additions:
+  stage                 ProspectStage  @default(identified)
+  owner                 String?
+  suggestedAskMin       Int?           @map("suggested_ask_min")
+  suggestedAskMax       Int?           @map("suggested_ask_max")
+  suggestedAskOverride  Boolean        @default(false) @map("suggested_ask_override")
+  lastStageChangeAt     DateTime?      @map("last_stage_change_at")
+
   tier                  Int            @default(3)
   age                   Int?
   location              String?
@@ -91,6 +113,7 @@ model Prospect {
 
   @@map("prospects")
   @@index([status])
+  @@index([stage])
   @@index([tier])
   @@index([name])
 }

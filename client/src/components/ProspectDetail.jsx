@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Landmark, ClipboardList, Megaphone, Zap, Mail, Check, AlertTriangle, ChevronDown, ChevronRight, GraduationCap } from 'lucide-react';
+import { Landmark, ClipboardList, Megaphone, Zap, Mail, Check, AlertTriangle, ChevronDown, ChevronRight, GraduationCap, Target, User } from 'lucide-react';
 import { api } from '../api.js';
 import AIResearchPanel from './AIResearchPanel.jsx';
 import TeamNotes from './TeamNotes.jsx';
 import ActivityLog from './ActivityLog.jsx';
 import ProspectEditForm from './ProspectEditForm.jsx';
 import ProspectMiniGraph from './ProspectMiniGraph.jsx';
+import { STAGES, STAGE_LABELS, STAGE_COLORS, StageBadge, displaySuggestedAsk, fmtMoney } from './ProspectList.jsx';
 
 const UNI_PATTERN = /\b(Harvard|Penn|Wharton|Columbia|Brown|Cornell|Northwestern|Yale|Princeton|Stanford|MIT|Dartmouth|Berkeley|UCLA|NYU|Duke|Chicago|Michigan|Brandeis|Hunter College|Ohio State|Stony Brook|Yeshiva University|Tel Aviv University|Jerusalem College of Technology)\b/g;
 const HL_PATTERN = /\b(withdrew|withdrawn|pulled|letter|resign(?:ed|ing)?|antisemitism|antisemitic|protest(?:s|ers|ed)?)\b/gi;
@@ -38,10 +39,14 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
     api.get('/api/donors').then(({ donors }) => setAllDonors(donors || [])).catch(() => {});
   }, []);
 
-  async function toggleContacted() {
-    await api.patch(`/api/prospects/${id}`, { contacted: !prospect.contacted });
+  async function patchProspect(payload) {
+    await api.patch(`/api/prospects/${id}`, payload);
     await load();
     onChanged && onChanged();
+  }
+
+  async function toggleContacted() {
+    await patchProspect({ contacted: !prospect.contacted });
   }
   async function updateLastContact(dateStr) {
     await api.patch(`/api/prospects/${id}`, { lastContactDate: dateStr || null });
@@ -117,6 +122,14 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
 
                 {/* RIGHT — Collapsible sections */}
                 <div>
+                  {/* NEW: Moves Management — top so it's the first thing visible */}
+                  <CollapsibleSection id={`p-${id}-moves`} title="Moves Management" defaultOpen={true}>
+                    <MovesManagement
+                      prospect={prospect}
+                      onPatch={patchProspect}
+                    />
+                  </CollapsibleSection>
+
                   <CollapsibleSection id={`p-${id}-campus`} title="Campus Connections">
                     {prospect.campusConnections?.length ? (
                       <ul>
@@ -203,6 +216,225 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
   );
 }
 
+/**
+ * MovesManagement — stage dropdown, owner field, suggested ask range + override toggle.
+ * Calls onPatch({...partial}) to update. Parent handles reload.
+ */
+function MovesManagement({ prospect, onPatch }) {
+  const [stage, setStage] = useState(prospect.stage || 'identified');
+  const [owner, setOwner] = useState(prospect.owner || '');
+  const [ownerDirty, setOwnerDirty] = useState(false);
+  const [askMin, setAskMin] = useState(prospect.suggestedAskMin ?? '');
+  const [askMax, setAskMax] = useState(prospect.suggestedAskMax ?? '');
+  const [askDirty, setAskDirty] = useState(false);
+  const [override, setOverride] = useState(Boolean(prospect.suggestedAskOverride));
+  const [savingStage, setSavingStage] = useState(false);
+  const [savingOwner, setSavingOwner] = useState(false);
+  const [savingAsk, setSavingAsk] = useState(false);
+  const [err, setErr] = useState('');
+
+  // Reset local state when prospect changes (e.g. after save reload)
+  useEffect(() => {
+    setStage(prospect.stage || 'identified');
+    setOwner(prospect.owner || '');
+    setOwnerDirty(false);
+    setAskMin(prospect.suggestedAskMin ?? '');
+    setAskMax(prospect.suggestedAskMax ?? '');
+    setAskDirty(false);
+    setOverride(Boolean(prospect.suggestedAskOverride));
+  }, [prospect.id, prospect.stage, prospect.owner, prospect.suggestedAskMin, prospect.suggestedAskMax, prospect.suggestedAskOverride]);
+
+  async function saveStage(newStage) {
+    setErr('');
+    setSavingStage(true);
+    try {
+      await onPatch({ stage: newStage });
+    } catch (e) {
+      setErr(e.message || 'Failed to update stage');
+      setStage(prospect.stage || 'identified');
+    } finally {
+      setSavingStage(false);
+    }
+  }
+
+  async function saveOwner() {
+    setErr('');
+    setSavingOwner(true);
+    try {
+      await onPatch({ owner: owner.trim() || null });
+      setOwnerDirty(false);
+    } catch (e) {
+      setErr(e.message || 'Failed to update owner');
+    } finally {
+      setSavingOwner(false);
+    }
+  }
+
+  async function saveAsk() {
+    setErr('');
+    // Parse to integers; allow empty -> null
+    const lo = askMin === '' || askMin == null ? null : Number(askMin);
+    const hi = askMax === '' || askMax == null ? null : Number(askMax);
+    if (lo != null && (!Number.isFinite(lo) || lo < 0)) { setErr('Ask min must be a positive number.'); return; }
+    if (hi != null && (!Number.isFinite(hi) || hi < 0)) { setErr('Ask max must be a positive number.'); return; }
+    if (lo != null && hi != null && hi < lo) { setErr('Ask max must be ≥ ask min.'); return; }
+    setSavingAsk(true);
+    try {
+      // Saving a manual range implicitly sets override = true so future research won't overwrite.
+      await onPatch({
+        suggestedAskMin: lo,
+        suggestedAskMax: hi,
+        suggestedAskOverride: true,
+      });
+      setAskDirty(false);
+      setOverride(true);
+    } catch (e) {
+      setErr(e.message || 'Failed to update suggested ask');
+    } finally {
+      setSavingAsk(false);
+    }
+  }
+
+  async function toggleOverride() {
+    const next = !override;
+    setOverride(next);
+    setErr('');
+    try {
+      await onPatch({ suggestedAskOverride: next });
+    } catch (e) {
+      setErr(e.message || 'Failed to update override flag');
+      setOverride(!next);
+    }
+  }
+
+  const stageColor = STAGE_COLORS[stage] || '#6b7280';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {err && <div className="alert alert-error" style={{ marginBottom: 0 }}>{err}</div>}
+
+      {/* Stage */}
+      <div>
+        <label style={mmLabel}>Stage</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <StageBadge stage={stage} />
+          <select
+            className="select"
+            style={{ maxWidth: 220, borderLeft: `3px solid ${stageColor}` }}
+            value={stage}
+            disabled={savingStage}
+            onChange={(e) => {
+              const next = e.target.value;
+              setStage(next);
+              saveStage(next);
+            }}
+          >
+            {STAGES.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+          {savingStage && <span className="spinner" />}
+          {prospect.lastStageChangeAt && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Last change: {new Date(prospect.lastStageChangeAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Owner */}
+      <div>
+        <label style={mmLabel}><User size={11} style={{ display: 'inline', verticalAlign: -1, marginRight: 4 }} />Owner</label>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input
+            className="input"
+            style={{ maxWidth: 260 }}
+            value={owner}
+            placeholder="e.g. Todd"
+            onChange={(e) => { setOwner(e.target.value); setOwnerDirty(true); }}
+            onBlur={() => { if (ownerDirty) saveOwner(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.target.blur(); } }}
+            disabled={savingOwner}
+          />
+          {ownerDirty && (
+            <button className="btn btn-sm btn-primary" onClick={saveOwner} disabled={savingOwner}>
+              {savingOwner ? <span className="spinner" /> : 'Save'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Suggested Ask */}
+      <div>
+        <label style={mmLabel}><Target size={11} style={{ display: 'inline', verticalAlign: -1, marginRight: 4 }} />Suggested Ask</label>
+
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>$</span>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="1000"
+              style={{ width: 120 }}
+              value={askMin}
+              placeholder="min"
+              onChange={(e) => { setAskMin(e.target.value); setAskDirty(true); }}
+            />
+          </div>
+          <span style={{ color: 'var(--text-muted)' }}>–</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>$</span>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="1000"
+              style={{ width: 120 }}
+              value={askMax}
+              placeholder="max"
+              onChange={(e) => { setAskMax(e.target.value); setAskDirty(true); }}
+            />
+          </div>
+          {askDirty && (
+            <button className="btn btn-sm btn-primary" onClick={saveAsk} disabled={savingAsk}>
+              {savingAsk ? <span className="spinner" /> : 'Save'}
+            </button>
+          )}
+        </div>
+
+        {/* Display + override */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, fontSize: 12 }}>
+          <span style={{ color: '#10b981' }}>
+            Current: {displaySuggestedAsk(prospect)}
+          </span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 0, textTransform: 'none', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={override}
+              onChange={toggleOverride}
+            />
+            Lock from auto-recompute
+          </label>
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+          Auto-calc: 0.5%–1% of net worth, or by ICC count (5+ → $50K–$100K, 2–4 → $10K–$50K, 0–1 → $1K–$10K). Editing the range above locks it; uncheck to allow re-research to update.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const mmLabel = {
+  display: 'block',
+  fontSize: 11,
+  color: 'var(--text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+  marginBottom: 4,
+  fontWeight: 600,
+};
+
 function AtAGlanceCard({ prospect, matches, warmPathway }) {
   const signals = useMemo(() => {
     const list = [];
@@ -218,16 +450,30 @@ function AtAGlanceCard({ prospect, matches, warmPathway }) {
     <div className="at-a-glance">
       <div className="name">{prospect.name}</div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <StageBadge stage={prospect.stage} />
         <span className={`badge badge-${prospect.status}`}>{prospect.status}</span>
         <span className="tier">Tier {prospect.tier}</span>
       </div>
 
+      {prospect.owner && (
+        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+          👤 Owner: <strong style={{ color: 'var(--text)' }}>{prospect.owner}</strong>
+        </div>
+      )}
+
       {prospect.netWorth && (
         <div className="net-worth">
-          {prospect.netWorth}
+          {String(prospect.netWorth).trim().toLowerCase() === 'substantial' ? 'Unknown' : prospect.netWorth}
           {prospect.netWorthSource && <span className="net-worth-source">{prospect.netWorthSource}</span>}
         </div>
       )}
+
+      {(prospect.suggestedAskMin != null || prospect.suggestedAskMax != null) && (
+        <div style={{ marginTop: 4, fontSize: 13, color: '#10b981', fontWeight: 500 }}>
+          🎯 Suggested Ask: {displaySuggestedAsk(prospect)}
+        </div>
+      )}
+
       {prospect.occupation && <div className="occupation">{prospect.occupation}</div>}
       {prospect.location && <div className="location">{prospect.location}</div>}
 

@@ -1,10 +1,25 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Check, AlertTriangle, Zap } from 'lucide-react';
+import { Check, AlertTriangle, Zap, LayoutGrid, List } from 'lucide-react';
 import { api } from '../api.js';
 import ProspectDetail from './ProspectDetail.jsx';
 import AddProspectModal from './AddProspectModal.jsx';
+import KanbanBoard from './KanbanBoard.jsx';
 
 const STATUSES = ['hot', 'warm', 'cold', 'connected'];
+
+// Stage display config. Must match server-side ProspectStage enum.
+export const STAGES = [
+  { key: 'identified',         label: 'Identified',         color: '#6b7280' },
+  { key: 'researched',         label: 'Researched',         color: '#3b82f6' },
+  { key: 'warm_intro_made',    label: 'Warm Intro',         color: '#8b5cf6' },
+  { key: 'meeting_scheduled',  label: 'Meeting Scheduled',  color: '#0ea5e9' },
+  { key: 'cultivation',        label: 'Cultivation',        color: '#f59e0b' },
+  { key: 'ask_made',           label: 'Ask Made',           color: '#ec4899' },
+  { key: 'closed_won',         label: 'Closed — Won',       color: '#10b981' },
+  { key: 'closed_declined',    label: 'Closed — Declined',  color: '#ef4444' },
+];
+export const STAGE_LABELS = Object.fromEntries(STAGES.map((s) => [s.key, s.label]));
+export const STAGE_COLORS = Object.fromEntries(STAGES.map((s) => [s.key, s.color]));
 
 export default function ProspectList({ user }) {
   const [prospects, setProspects] = useState([]);
@@ -15,6 +30,7 @@ export default function ProspectList({ user }) {
   const [tierFilter, setTierFilter] = useState('');
   const [iccMatchFilter, setIccMatchFilter] = useState('');
   const [contactedFilter, setContactedFilter] = useState('');
+  const [stageFilter, setStageFilter] = useState('');
   // Default sort: primary by ICC connection count (desc), secondary by last name (asc).
   // User-initiated sorts override this temporarily.
   const [sort, setSort] = useState({ key: 'default', dir: 'desc' });
@@ -24,7 +40,16 @@ export default function ProspectList({ user }) {
   const [bulkMode, setBulkMode] = useState('unresearched'); // 'unresearched' | 'all' | 'errored'
   const [bulkJob, setBulkJob] = useState(null);
   const [bulkToast, setBulkToast] = useState('');
+  // View mode: 'table' | 'kanban'. Persist in sessionStorage.
+  const [view, setView] = useState(() => {
+    try { return sessionStorage.getItem('prospects-view') || 'table'; } catch { return 'table'; }
+  });
   const pollRef = useRef(null);
+
+  function changeView(next) {
+    setView(next);
+    try { sessionStorage.setItem('prospects-view', next); } catch {}
+  }
 
   async function load() {
     setLoading(true);
@@ -35,6 +60,7 @@ export default function ProspectList({ user }) {
     if (tierFilter) params.set('tier', tierFilter);
     if (iccMatchFilter) params.set('iccMatch', iccMatchFilter);
     if (contactedFilter) params.set('contacted', contactedFilter);
+    if (stageFilter) params.set('stage', stageFilter);
     try {
       const { prospects } = await api.get('/api/prospects?' + params.toString());
       setProspects(prospects);
@@ -45,7 +71,7 @@ export default function ProspectList({ user }) {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [q, statusFilter, tierFilter, iccMatchFilter, contactedFilter]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [q, statusFilter, tierFilter, iccMatchFilter, contactedFilter, stageFilter]);
 
   // On mount: see if a bulk job is already running (e.g. someone refreshed)
   useEffect(() => {
@@ -144,6 +170,10 @@ export default function ProspectList({ user }) {
         av = (a.iccNetworkMatches || []).length;
         bv = (b.iccNetworkMatches || []).length;
       }
+      if (key === 'suggestedAsk') {
+        av = a.suggestedAskMin || 0;
+        bv = b.suggestedAskMin || 0;
+      }
       if (av == null) av = '';
       if (bv == null) bv = '';
       if (av < bv) return dir === 'asc' ? -1 : 1;
@@ -157,31 +187,72 @@ export default function ProspectList({ user }) {
     setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
   }
 
+  // Drag-drop handler from Kanban: PATCH the stage, then update locally.
+  async function handleStageChange(prospectId, newStage) {
+    // Optimistic update
+    setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, stage: newStage, lastStageChangeAt: new Date().toISOString() } : p));
+    try {
+      await api.patch(`/api/prospects/${prospectId}`, { stage: newStage });
+    } catch (e) {
+      setError(`Failed to update stage: ${e.message}`);
+      // Reload to get true state
+      load();
+    }
+  }
+
   return (
     <>
       <div className="toolbar">
-        <input className="input" style={{ maxWidth: 260 }} placeholder="Search name, location, occupation…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="select" style={{ maxWidth: 140 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <input className="input" style={{ maxWidth: 240 }} placeholder="Search name, location, occupation…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className="select" style={{ maxWidth: 130 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All statuses</option>
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="select" style={{ maxWidth: 120 }} value={tierFilter} onChange={(e) => setTierFilter(e.target.value)}>
+        <select className="select" style={{ maxWidth: 160 }} value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+          <option value="">All stages</option>
+          {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+        </select>
+        <select className="select" style={{ maxWidth: 110 }} value={tierFilter} onChange={(e) => setTierFilter(e.target.value)}>
           <option value="">All tiers</option>
           <option value="1">Tier 1</option>
           <option value="2">Tier 2</option>
           <option value="3">Tier 3</option>
         </select>
-        <select className="select" style={{ maxWidth: 160 }} value={iccMatchFilter} onChange={(e) => setIccMatchFilter(e.target.value)}>
+        <select className="select" style={{ maxWidth: 150 }} value={iccMatchFilter} onChange={(e) => setIccMatchFilter(e.target.value)}>
           <option value="">ICC match: any</option>
           <option value="true">Has ICC match</option>
           <option value="false">No match</option>
         </select>
-        <select className="select" style={{ maxWidth: 150 }} value={contactedFilter} onChange={(e) => setContactedFilter(e.target.value)}>
+        <select className="select" style={{ maxWidth: 140 }} value={contactedFilter} onChange={(e) => setContactedFilter(e.target.value)}>
           <option value="">Contacted: any</option>
           <option value="true">Contacted</option>
           <option value="false">Not contacted</option>
         </select>
+
         <div style={{ flex: 1 }} />
+
+        {/* View toggle */}
+        <div className="view-toggle" role="group" aria-label="View" style={viewToggleStyle}>
+          <button
+            type="button"
+            onClick={() => changeView('table')}
+            className={view === 'table' ? 'active' : ''}
+            style={view === 'table' ? viewBtnActive : viewBtn}
+            title="Table view"
+          >
+            <List size={14} /> Table
+          </button>
+          <button
+            type="button"
+            onClick={() => changeView('kanban')}
+            className={view === 'kanban' ? 'active' : ''}
+            style={view === 'kanban' ? viewBtnActive : viewBtn}
+            title="Kanban view"
+          >
+            <LayoutGrid size={14} /> Kanban
+          </button>
+        </div>
+
         {user.role === 'admin' && (
           <>
             <select
@@ -240,15 +311,24 @@ export default function ProspectList({ user }) {
         <div className="empty"><span className="spinner" /></div>
       ) : sorted.length === 0 ? (
         <div className="empty">No prospects match these filters yet.</div>
+      ) : view === 'kanban' ? (
+        <KanbanBoard
+          prospects={sorted}
+          onStageChange={handleStageChange}
+          onSelect={(id) => setSelectedId(id)}
+        />
       ) : (
         <table className="table">
           <thead>
             <tr>
               <th style={{ width: 36, textAlign: 'right', color: 'var(--text-muted)' }}>#</th>
               <th onClick={() => toggleSort('name')}>Name</th>
+              <th onClick={() => toggleSort('stage')}>Stage</th>
+              <th onClick={() => toggleSort('owner')}>Owner</th>
               <th onClick={() => toggleSort('status')}>Status</th>
               <th onClick={() => toggleSort('tier')}>Tier</th>
               <th onClick={() => toggleSort('netWorth')}>Net Worth</th>
+              <th onClick={() => toggleSort('suggestedAsk')}>Suggested Ask</th>
               <th onClick={() => toggleSort('location')}>Location</th>
               <th onClick={() => toggleSort('iccMatches')}>ICC Match</th>
               <th>Research</th>
@@ -260,9 +340,12 @@ export default function ProspectList({ user }) {
               <tr key={p.id} onClick={() => setSelectedId(p.id)}>
                 <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
                 <td className="name-cell">{p.name}</td>
+                <td><StageBadge stage={p.stage} /></td>
+                <td style={{ fontSize: 13 }}>{p.owner || <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                 <td><span className={`badge badge-${p.status}`}>{p.status}</span></td>
                 <td><span className="tier">Tier {p.tier}</span></td>
                 <td className="mono">{displayNetWorth(p.netWorth)}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{displaySuggestedAsk(p)}</td>
                 <td>{p.location || '—'}</td>
                 <td>{(p.iccNetworkMatches || []).length > 0 ? <span className="icc-match"><Zap size={12} /> {p.iccNetworkMatches.length}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                 <td>
@@ -328,6 +411,75 @@ export default function ProspectList({ user }) {
       )}
     </>
   );
+}
+
+// ---- View-toggle inline styles (no global CSS edits required) ----
+const viewToggleStyle = {
+  display: 'inline-flex',
+  borderRadius: 6,
+  overflow: 'hidden',
+  border: '1px solid var(--border, #2a2a2a)',
+};
+const viewBtn = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 10px',
+  fontSize: 12,
+  background: 'transparent',
+  color: 'var(--text-muted)',
+  border: 'none',
+  cursor: 'pointer',
+};
+const viewBtnActive = {
+  ...viewBtn,
+  background: 'var(--bg-elevated, #1f1f1f)',
+  color: 'var(--text)',
+};
+
+// ---- Reusable Stage badge ----
+export function StageBadge({ stage }) {
+  const s = stage || 'identified';
+  const label = STAGE_LABELS[s] || s;
+  const color = STAGE_COLORS[s] || '#6b7280';
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '2px 8px',
+        borderRadius: 10,
+        fontSize: 11,
+        fontWeight: 500,
+        background: color + '22',
+        color: color,
+        border: `1px solid ${color}55`,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+// ---- Helpers ----
+
+// Display suggested ask range. Returns "—" if both null.
+export function displaySuggestedAsk(p) {
+  const lo = p.suggestedAskMin;
+  const hi = p.suggestedAskMax;
+  if (lo == null && hi == null) return '—';
+  if (lo != null && hi != null) {
+    return `${fmtMoney(lo)} – ${fmtMoney(hi)}${p.suggestedAskOverride ? ' *' : ''}`;
+  }
+  return fmtMoney(lo ?? hi) + (p.suggestedAskOverride ? ' *' : '');
+}
+
+export function fmtMoney(n) {
+  if (n == null) return '';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(n % 1e9 === 0 ? 0 : 1) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + 'M';
+  if (n >= 1e3) return '$' + Math.round(n / 1e3) + 'K';
+  return '$' + n;
 }
 
 // Extract the last whitespace-separated token of a name, ignoring trailing suffixes

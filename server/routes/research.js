@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { researchProspect, temperatureFromIccCount, normalizeNetWorth, MODEL } = require('../lib/researchProspect');
+const { researchProspect, temperatureFromIccCount, normalizeNetWorth, computeSuggestedAsk, MODEL } = require('../lib/researchProspect');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -58,6 +58,25 @@ router.post('/prospects/:id/research/apply', async (req, res) => {
       : (prospect.iccNetworkMatches || []);
     if (prospect.status !== 'connected') {
       data.status = temperatureFromIccCount(finalIccMatches.length);
+    }
+
+    // Auto-recompute suggested ask range from the final net worth + ICC count,
+    // unless staff manually overrode it (suggestedAskOverride=true).
+    if (!prospect.suggestedAskOverride) {
+      const finalNetWorth = (typeof data.netWorth === 'string') ? data.netWorth : prospect.netWorth;
+      const { min, max } = computeSuggestedAsk({
+        netWorth: finalNetWorth,
+        iccConnectionCount: finalIccMatches.length,
+      });
+      data.suggestedAskMin = min;
+      data.suggestedAskMax = max;
+    }
+
+    // Auto-advance pipeline stage from 'identified' → 'researched' the first time
+    // research is applied. Never overwrite later stages.
+    if (prospect.stage === 'identified') {
+      data.stage = 'researched';
+      data.lastStageChangeAt = new Date();
     }
 
     // Mark research as completed when the user applies an update

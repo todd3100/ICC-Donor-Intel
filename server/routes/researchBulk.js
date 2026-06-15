@@ -123,6 +123,25 @@ async function runBulk(ids, triggeredBy, mode) {
         }
         const applyFields = buildApplyFields(data, resolvedMatchIds);
 
+        // Don't overwrite a 'connected' status — that's an outcome label, not a heat rating.
+        if (prospect.status === 'connected') {
+          delete applyFields.status;
+        }
+
+        // Respect manual suggested-ask overrides set by staff.
+        if (prospect.suggestedAskOverride) {
+          delete applyFields.suggestedAskMin;
+          delete applyFields.suggestedAskMax;
+        }
+
+        // Auto-advance pipeline stage: if the prospect is still at 'identified'
+        // (the default for newly-imported prospects), bump to 'researched' now
+        // that AI research has actually completed. Never touch later stages.
+        if (prospect.stage === 'identified') {
+          applyFields.stage = 'researched';
+          applyFields.lastStageChangeAt = new Date();
+        }
+
         // Strip undefined keys so we don't overwrite existing data with undefined
         const cleanData = {};
         for (const [k, v] of Object.entries(applyFields)) {

@@ -14,14 +14,19 @@ const upload = multer({
 });
 
 const VALID_STATUSES = new Set(['hot', 'warm', 'cold', 'connected']);
+const VALID_STAGES = new Set([
+  'identified', 'researched', 'warm_intro_made', 'meeting_scheduled',
+  'cultivation', 'ask_made', 'closed_won', 'closed_declined',
+]);
 
 // Fields the client is allowed to write
 const WRITABLE = [
-  'name', 'status', 'tier', 'age', 'location', 'undergrad', 'grad',
+  'name', 'status', 'stage', 'owner', 'tier', 'age', 'location', 'undergrad', 'grad',
   'netWorth', 'netWorthSource', 'occupation', 'previousRoles',
   'campusConnections', 'philanthropicFootprint', 'oct7Signals',
   'children', 'spouse', 'personalConnections', 'iccNetworkMatches',
   'connectionDetail', 'contacted', 'lastContactDate', 'contactResponse',
+  'suggestedAskMin', 'suggestedAskMax', 'suggestedAskOverride',
 ];
 
 function sanitizePayload(body) {
@@ -32,14 +37,26 @@ function sanitizePayload(body) {
     if (k === 'tier') v = Number(v) || 3;
     if (k === 'age') v = v === '' || v == null ? null : Number(v);
     if (k === 'contacted') v = !!v;
+    if (k === 'suggestedAskOverride') v = !!v;
+    if (k === 'suggestedAskMin' || k === 'suggestedAskMax') {
+      v = v === '' || v == null ? null : Math.max(0, Math.round(Number(v)));
+      if (!Number.isFinite(v)) v = null;
+    }
     if (k === 'lastContactDate') v = v ? new Date(v) : null;
     if (['previousRoles','campusConnections','philanthropicFootprint','iccNetworkMatches'].includes(k)) {
       if (!Array.isArray(v)) v = [];
       v = v.map((s) => String(s)).filter(Boolean);
     }
+    if (k === 'stage' && typeof v === 'string') {
+      v = v.trim().toLowerCase();
+      if (!VALID_STAGES.has(v)) continue;
+    }
     if (typeof v === 'string') v = v.trim();
     data[k] = v;
   }
+  // If the client changed the stage, stamp lastStageChangeAt so dashboards can
+  // detect stale prospects.
+  if ('stage' in data) data.lastStageChangeAt = new Date();
   return data;
 }
 

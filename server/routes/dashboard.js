@@ -118,7 +118,9 @@ router.get('/dashboard/summary', requireAuth, async (req, res, next) => {
       where: {
         suggestedAskMax: { not: null },
         // Exclude stewardship (already gave) from "open" top opportunities.
-        stage: { not: 'stewardship' },
+        // Use `notIn` for broader Prisma version compatibility (the bare `not`
+        // form is rejected by some Prisma versions for enum fields).
+        stage: { notIn: ['stewardship'] },
       },
       orderBy: [{ suggestedAskMax: 'desc' }, { name: 'asc' }],
       take: 10,

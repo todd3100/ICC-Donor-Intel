@@ -15,6 +15,7 @@ const notesRoutes = require('./routes/notes');
 const researchRoutes = require('./routes/research');
 const networkRoutes = require('./routes/network');
 const tasksRoutes = require('./routes/tasks');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api', researchRoutes);
 app.use('/api', researchBulkRoutes);
 app.use('/api', networkRoutes);
 app.use('/api', tasksRoutes);
+app.use('/api', dashboardRoutes);
 
 // Serve the built React client from /client/dist in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');

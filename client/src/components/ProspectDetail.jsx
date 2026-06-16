@@ -20,6 +20,41 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
   const [reRun, setReRun] = useState(false);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState(null);
+
+  async function generateBrief() {
+    if (!prospect) return;
+    setBriefLoading(true);
+    setBriefError(null);
+    try {
+      // Hit the PDF endpoint directly; the browser handles the download.
+      // Use fetch so we can catch non-200 errors gracefully (the api.js wrapper
+      // assumes JSON responses, which won't work for a PDF stream).
+      const res = await fetch(`/api/prospects/${prospect.id}/meeting-brief.pdf`, {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch (_e) {}
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ICC_Brief_${(prospect.name || 'prospect').replace(/[^a-z0-9]+/gi, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Free the blob URL after a brief delay so the download can start
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      setBriefError(e.message || 'Failed to generate brief');
+    } finally {
+      setBriefLoading(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -83,7 +118,17 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
               )}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {prospect && !editing && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={generateBrief}
+                disabled={briefLoading}
+                title="Generate a one-page PDF meeting brief"
+              >
+                {briefLoading ? 'Generating…' : 'Meeting Brief'}
+              </button>
+            )}
             {prospect && !editing && <button className="btn" onClick={() => setEditing(true)}>Edit</button>}
             {user.role === 'admin' && prospect && <button className="btn btn-danger btn-sm" onClick={removeProspect}>Delete</button>}
             <button className="btn btn-ghost" onClick={onClose}>✕</button>
@@ -92,6 +137,7 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
 
         <div className="drawer-body">
           {error && <div className="alert alert-error">{error}</div>}
+          {briefError && <div className="alert alert-error">Brief: {briefError}</div>}
           {loading && <div className="empty"><span className="spinner" /></div>}
 
           {prospect && editing && (

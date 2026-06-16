@@ -85,13 +85,14 @@ export default function ExecutiveDashboard({ user }) {
     async function load() {
       setLoading(true);
       try {
-        const res = await api.get('/api/dashboard/summary');
+        // api.get returns the parsed JSON directly (fetch wrapper, not axios).
+        const json = await api.get('/api/dashboard/summary');
         if (!cancelled) {
-          setData(res.data);
+          setData(json);
           setError(null);
         }
       } catch (e) {
-        if (!cancelled) setError(e?.response?.data?.error || e.message || 'Failed to load');
+        if (!cancelled) setError(e?.data?.error || e.message || 'Failed to load');
       } finally {
         if (!cancelled) setLoading(false);
       }

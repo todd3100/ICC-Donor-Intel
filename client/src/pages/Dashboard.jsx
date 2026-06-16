@@ -4,10 +4,11 @@ import DonorList from '../components/DonorList.jsx';
 import UsersAdmin from '../components/UsersAdmin.jsx';
 import ConnectionMap from '../components/ConnectionMap.jsx';
 import MyQueue from '../components/MyQueue.jsx';
+import ExecutiveDashboard from '../components/ExecutiveDashboard.jsx';
 import { api } from '../api.js';
 
 export default function Dashboard({ user, onLogout }) {
-  const [tab, setTab] = useState('prospects');
+  const [tab, setTab] = useState('dashboard');
 
   async function logout() {
     await api.post('/api/auth/logout');
@@ -27,6 +28,7 @@ export default function Dashboard({ user, onLogout }) {
       </div>
 
       <div className="tabs">
+        <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>Dashboard</button>
         <button className={`tab ${tab === 'prospects' ? 'active' : ''}`} onClick={() => setTab('prospects')}>Prospects</button>
         <button className={`tab ${tab === 'queue' ? 'active' : ''}`} onClick={() => setTab('queue')}>My Queue</button>
         <button className={`tab ${tab === 'donors' ? 'active' : ''}`} onClick={() => setTab('donors')}>ICC Donor Network</button>
@@ -37,6 +39,7 @@ export default function Dashboard({ user, onLogout }) {
       </div>
 
       <div className="content">
+        {tab === 'dashboard' && <ExecutiveDashboard user={user} />}
         {tab === 'prospects' && <ProspectList user={user} />}
         {tab === 'queue' && <MyQueue user={user} />}
         {tab === 'donors' && <DonorList user={user} />}

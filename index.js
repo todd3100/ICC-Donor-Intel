@@ -15,6 +15,7 @@ const notesRoutes = require('./routes/notes');
 const researchRoutes = require('./routes/research');
 const networkRoutes = require('./routes/network');
 const tasksRoutes = require('./routes/tasks');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api', researchRoutes);
 app.use('/api', researchBulkRoutes);
 app.use('/api', networkRoutes);
 app.use('/api', tasksRoutes);
+app.use('/api', dashboardRoutes);
 
 // Serve the built React client from /client/dist in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
@@ -51,28 +53,12 @@ if (fs.existsSync(clientDist)) {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('[server/error]', err);
-  res.status(500).json({ error: err.message || 'Server error' });
+  console.error('[error]', err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
-const PORT = process.env.PORT || 3000;
-
-async function runSeedOnBoot() {
-  if (process.env.RUN_SEED_ON_START === 'false') return;
-  try {
-    const { spawn } = require('child_process');
-    const child = spawn(process.execPath, [path.join(__dirname, 'prisma', 'seed.js')], {
-      env: process.env,
-      stdio: 'inherit',
-    });
-    child.on('exit', (code) => console.log(`[server] seed exited with code ${code}`));
-    child.on('error', (e) => console.warn('[server] seed failed to start:', e.message));
-  } catch (e) {
-    console.warn('[server] seed skipped:', e.message);
-  }
-}
-
-runSeedOnBoot();
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`[server] listening on ${PORT}`);
+  console.log(`[server] listening on :${PORT}`);
 });

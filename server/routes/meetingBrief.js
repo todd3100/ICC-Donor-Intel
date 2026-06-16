@@ -75,7 +75,7 @@ async function loadProspectForBrief(id) {
   if (Array.isArray(prospect.iccNetworkMatches) && prospect.iccNetworkMatches.length > 0) {
     const donors = await prisma.donor.findMany({
       where: { id: { in: prospect.iccNetworkMatches } },
-      select: { id: true, name: true, totalGiving: true, isBoard: true, isTrustee: true },
+      select: { id: true, name: true, type: true, principals: true },
     });
     iccNetworkConnections = donors;
   }
@@ -99,7 +99,7 @@ async function generateTalkingPoints(prospect, iccNetworkConnections, recentNote
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const connectionsText = iccNetworkConnections.length
-      ? iccNetworkConnections.map((d) => `- ${d.name}${d.isBoard ? ' (ICC board)' : d.isTrustee ? ' (ICC trustee)' : ''}`).join('\n')
+      ? iccNetworkConnections.map((d) => `- ${d.name}${d.type === 'org' ? ' (org)' : ''}`).join('\n')
       : '(none recorded)';
     const notesText = recentNotes.length
       ? recentNotes.map((n) => `- ${n.content.slice(0, 200)}`).join('\n')
@@ -257,7 +257,7 @@ function renderBriefPdf(res, { prospect, iccNetworkConnections, talkingPoints, g
       const row = Math.floor(idx / cols);
       const x = left + col * colWidth;
       const itemY = startY + row * 14;
-      const badge = d.isBoard ? '  · Board' : d.isTrustee ? '  · Trustee' : '';
+      const badge = d.type === 'org' ? '  · Org' : '';
       doc.text(`• ${d.name}${badge}`, x, itemY, { width: colWidth - 8, lineBreak: false });
       if (itemY + 14 > maxY) maxY = itemY + 14;
     });

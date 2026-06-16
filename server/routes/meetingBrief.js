@@ -85,7 +85,7 @@ async function loadProspectForBrief(id) {
     where: { prospectId: id },
     orderBy: { createdAt: 'desc' },
     take: 3,
-    select: { content: true, createdAt: true, user: { select: { name: true } } },
+    select: { body: true, createdAt: true, user: { select: { name: true } } },
   });
 
   return { prospect, iccNetworkConnections, recentNotes };
@@ -102,7 +102,7 @@ async function generateTalkingPoints(prospect, iccNetworkConnections, recentNote
       ? iccNetworkConnections.map((d) => `- ${d.name}${d.type === 'org' ? ' (org)' : ''}`).join('\n')
       : '(none recorded)';
     const notesText = recentNotes.length
-      ? recentNotes.map((n) => `- ${n.content.slice(0, 200)}`).join('\n')
+      ? recentNotes.map((n) => `- ${(n.body || '').slice(0, 200)}`).join('\n')
       : '(none recorded)';
     const philanthropyText = Array.isArray(prospect.philanthropicFootprint) && prospect.philanthropicFootprint.length
       ? prospect.philanthropicFootprint.join('; ')

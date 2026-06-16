@@ -40,14 +40,20 @@ const FY_GOALS = {
 const KNOWN_STAFF = ['Jacob', 'Ian', 'Shira', 'Rose', 'Elisabeth', 'Todd'];
 
 // Display order for pipeline stages on the dashboard.
+// Mirrors enum ProspectStage in schema.prisma.
 const STAGE_ORDER = [
   'identified',
   'researched',
-  'qualified',
+  'warm_intro_made',
+  'meeting_scheduled',
   'cultivation',
-  'solicitation',
-  'stewardship',
+  'ask_made',
+  'closed_won',
+  'closed_declined',
 ];
+
+// Stages considered "closed" (won/declined) for filtering top open prospects.
+const CLOSED_STAGES = ['closed_won', 'closed_declined'];
 
 function pctElapsed(start, end, now = new Date()) {
   const total = end.getTime() - start.getTime();
@@ -117,10 +123,9 @@ router.get('/dashboard/summary', requireAuth, async (req, res, next) => {
     const topProspects = await prisma.prospect.findMany({
       where: {
         suggestedAskMax: { not: null },
-        // Exclude stewardship (already gave) from "open" top opportunities.
-        // Use `notIn` for broader Prisma version compatibility (the bare `not`
-        // form is rejected by some Prisma versions for enum fields).
-        stage: { notIn: ['stewardship'] },
+        // Exclude closed (won/declined) so "top open opportunities" doesn't
+        // include prospects that have already finished the journey.
+        stage: { notIn: CLOSED_STAGES },
       },
       orderBy: [{ suggestedAskMax: 'desc' }, { name: 'asc' }],
       take: 10,

@@ -46,10 +46,12 @@ function fmtRelative(iso) {
 const STAGE_LABELS = {
   identified: 'Identified',
   researched: 'Researched',
-  qualified: 'Qualified',
+  warm_intro_made: 'Warm Intro',
+  meeting_scheduled: 'Meeting',
   cultivation: 'Cultivation',
-  solicitation: 'Solicitation',
-  stewardship: 'Stewardship',
+  ask_made: 'Ask Made',
+  closed_won: 'Closed Won',
+  closed_declined: 'Declined',
 };
 const TIER_COLORS = ['#4ade80', '#facc15', '#94a3b8']; // T1 green, T2 amber, T3 grey
 const STAGE_COLOR = '#60a5fa';

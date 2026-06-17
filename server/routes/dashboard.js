@@ -22,7 +22,7 @@ const FY_GOALS = {
   FY26: {
     label: 'FY26',
     goal: 18000000,
-    raisedToDate: 18289016,
+    raisedToDate: 18406891,
     // Fiscal-year boundaries used for the "% of FY elapsed" indicator.
     start: new Date('2025-07-01T00:00:00Z'),
     end: new Date('2026-06-30T23:59:59Z'),

@@ -30,7 +30,7 @@ const FY_GOALS = {
   FY27: {
     label: 'FY27',
     goal: 18000000,
-    raisedToDate: 6450000,
+    raisedToDate: 7301680,
     start: new Date('2026-07-01T00:00:00Z'),
     end: new Date('2027-06-30T23:59:59Z'),
   },

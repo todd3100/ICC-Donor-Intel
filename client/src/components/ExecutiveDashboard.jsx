@@ -108,14 +108,14 @@ export default function ExecutiveDashboard({ user }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '8px 4px 24px' }}>
       <FyGoals goals={data.goals} />
-      {/* Pipeline by Stage — full width, always renders above Top Ten */}
+      {/* Top Ten Prospects by Suggested Ask — full width, always renders above Pipeline */}
+      <TopProspects rows={data.topProspects} />
+      {/* Pipeline by Stage — full width, always below Top Ten */}
       <PipelineChart pipeline={data.pipelineByStage} totals={data.totals} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <TierDonut tiers={data.tierBreakdown} />
         <TeamTaskLoad rows={data.teamTaskLoad} />
       </div>
-      {/* Top Ten Prospects by Suggested Ask — full width, always below Pipeline */}
-      <TopProspects rows={data.topProspects} />
       <RecentActivity rows={data.recentActivity} />
       <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right' }}>
         Generated {fmtRelative(data.generatedAt)}

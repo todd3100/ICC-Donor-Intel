@@ -19,7 +19,6 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
-  const [reRun, setReRun] = useState(false);
   const [briefLoading, setBriefLoading] = useState(false);
   const [briefError, setBriefError] = useState(null);
 
@@ -150,14 +149,6 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
 
           {prospect && !editing && (
             <>
-              {/* Research banner */}
-              {!prospect.aiResearchCompleted && !reRun && (
-                <div className="research-banner">
-                  <span>Research pending — run bulk research from the Prospects page, or research this profile now.</span>
-                  <button className="btn btn-sm" onClick={() => setReRun(true)}>Research now</button>
-                </div>
-              )}
-
               {/* Mini network graph */}
               <ProspectMiniGraph prospect={prospect} matches={matches} />
 
@@ -247,17 +238,15 @@ export default function ProspectDetail({ id, user, onClose, onChanged }) {
                     <ActivityLog entries={prospect.auditLogs || []} />
                   </CollapsibleSection>
 
-                  {/* AI research panel — moved into a secondary spot */}
-                  {(prospect.aiResearchCompleted || reRun) ? (
-                    <CollapsibleSection id={`p-${id}-airesearch`} title="AI Research" defaultOpen={reRun}>
-                      <AIResearchPanel prospect={prospect} onApplied={load} />
-                      {prospect.aiResearchCompleted && (
-                        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-                          Last run: {prospect.aiResearchLastRun ? new Date(prospect.aiResearchLastRun).toLocaleString() : '—'}
-                        </div>
-                      )}
-                    </CollapsibleSection>
-                  ) : null}
+                  {/* AI research panel — sole entry point for running AI research on this profile */}
+                  <CollapsibleSection id={`p-${id}-airesearch`} title="AI Research" defaultOpen={!prospect.aiResearchCompleted}>
+                    <AIResearchPanel prospect={prospect} onApplied={load} />
+                    {prospect.aiResearchCompleted && (
+                      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                        Last run: {prospect.aiResearchLastRun ? new Date(prospect.aiResearchLastRun).toLocaleString() : '—'}
+                      </div>
+                    )}
+                  </CollapsibleSection>
                 </div>
               </div>
             </>

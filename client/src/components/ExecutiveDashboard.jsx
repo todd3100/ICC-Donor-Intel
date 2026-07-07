@@ -108,14 +108,14 @@ export default function ExecutiveDashboard({ user }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '8px 4px 24px' }}>
       <FyGoals goals={data.goals} />
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-        <PipelineChart pipeline={data.pipelineByStage} totals={data.totals} />
+      {/* Pipeline by Stage — full width, always renders above Top Ten */}
+      <PipelineChart pipeline={data.pipelineByStage} totals={data.totals} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <TierDonut tiers={data.tierBreakdown} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24 }}>
-        <TopProspects rows={data.topProspects} />
         <TeamTaskLoad rows={data.teamTaskLoad} />
       </div>
+      {/* Top Ten Prospects by Suggested Ask — full width, always below Pipeline */}
+      <TopProspects rows={data.topProspects} />
       <RecentActivity rows={data.recentActivity} />
       <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right' }}>
         Generated {fmtRelative(data.generatedAt)}
@@ -247,7 +247,9 @@ function TierDonut({ tiers }) {
                 {data.map((entry, i) => <Cell key={i} fill={entry.color} stroke="none" />)}
               </Pie>
               <Tooltip
-                contentStyle={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 12 }}
+                contentStyle={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 12, color: '#f5f5f5' }}
+                itemStyle={{ color: '#f5f5f5' }}
+                labelStyle={{ color: '#f5f5f5' }}
                 formatter={(value, name, item) => [`${value} prospects · ${fmtMoney(item.payload.suggested)}`, name]}
               />
               <Legend

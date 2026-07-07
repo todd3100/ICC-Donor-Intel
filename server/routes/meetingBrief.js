@@ -154,10 +154,17 @@ Return ONLY the numbered list, no preamble.`;
 }
 
 // ---- PDF layout ----------------------------------------------------------
+// Spacing constants (Fix 3 — prevent overlap).
+// Minimum line-height ratio 1.4 is applied via lineGap on all flowing text.
+const LG_BODY = 3;         // ~10pt font × 1.4 ≈ 4pt gap; use 3 for tightness
+const PAD_SECTION = 14;    // vertical padding between sections (≥ 12pt requirement)
+const PAD_HEADING = 8;     // gap between section title and its content
+
 function renderBriefPdf(res, { prospect, iccNetworkConnections, talkingPoints, generatedBy, generatedAt }) {
   const doc = new PDFDocument({
     size: 'LETTER',
-    margins: { top: 54, bottom: 54, left: 54, right: 54 },
+    margins: { top: 54, bottom: 72, left: 54, right: 54 }, // extra bottom margin to protect footer
+    bufferPages: true, // required so we can stamp footers on every page after layout
     info: {
       Title: `ICC Meeting Brief — ${prospect.name}`,
       Author: 'ICC Donor Intelligence',
@@ -175,136 +182,204 @@ function renderBriefPdf(res, { prospect, iccNetworkConnections, talkingPoints, g
 
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const left = doc.page.margins.left;
-  let y = doc.page.margins.top;
+  const dateStr = new Date(generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  // NOTE: Footer is drawn on every page at the end of this function using
+  // bufferedPageRange + switchToPage. This is safer than a 'pageAdded'
+  // listener, which can recurse infinitely if drawing the footer itself
+  // spans a page break.
 
   // ---- Header band ------------------------------------------------------
+  // Draw logo/date at fixed positions but reserve a safe band height so
+  // nothing below can overlap the header.
+  const HEADER_TOP = doc.page.margins.top;
+  const HEADER_HEIGHT = 56;
+
   if (LOGO_EXISTS) {
     try {
-      doc.image(LOGO_PATH, left, y, { height: 32 });
+      doc.image(LOGO_PATH, left, HEADER_TOP, { height: 32 });
     } catch (_e) { /* ignore image errors */ }
   } else {
-    doc.fillColor(COLOR_PRIMARY).font('Helvetica-Bold').fontSize(18).text('ICC', left, y);
+    doc.fillColor(COLOR_PRIMARY).font('Helvetica-Bold').fontSize(18)
+      .text('ICC', left, HEADER_TOP, { lineBreak: false });
   }
   doc.fillColor(COLOR_MUTED).font('Helvetica').fontSize(9)
-    .text('Donor Intelligence · Meeting Brief', left, y + 36);
+    .text('Donor Intelligence · Meeting Brief', left, HEADER_TOP + 38, { lineBreak: false });
 
-  // Date on right
-  const dateStr = new Date(generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  // Date on right (single line, aligned right within pageWidth)
   doc.fontSize(9).fillColor(COLOR_MUTED)
-    .text(dateStr, left, y, { width: pageWidth, align: 'right' });
+    .text(dateStr, left, HEADER_TOP, { width: pageWidth, align: 'right', lineBreak: false });
 
-  y += 60;
-  doc.moveTo(left, y).lineTo(left + pageWidth, y).strokeColor(COLOR_RULE).lineWidth(0.5).stroke();
-  y += 14;
+  // Divider below header band
+  const dividerY = HEADER_TOP + HEADER_HEIGHT;
+  doc.moveTo(left, dividerY).lineTo(left + pageWidth, dividerY)
+    .strokeColor(COLOR_RULE).lineWidth(0.5).stroke();
 
-  // ---- Prospect name + meta line ----------------------------------------
-  doc.fillColor(COLOR_TEXT).font('Helvetica-Bold').fontSize(26).text(prospect.name, left, y);
-  y = doc.y + 4;
+  // Advance doc cursor to just below the divider. From here on we let pdfkit
+  // manage y via moveDown() so nothing can overlap. Explicit y is only used
+  // for the pill row (which we then follow up with moveDown).
+  doc.x = left;
+  doc.y = dividerY + PAD_SECTION;
 
+  // ---- Prospect name ---------------------------------------------------
+  doc.fillColor(COLOR_TEXT).font('Helvetica-Bold').fontSize(26)
+    .text(prospect.name, { width: pageWidth, lineGap: 4 });
+  doc.moveDown(0.2);
+
+  // ---- Meta line -------------------------------------------------------
   const metaParts = [];
   if (prospect.occupation) metaParts.push(prospect.occupation);
   if (prospect.location) metaParts.push(prospect.location);
   if (metaParts.length) {
-    doc.font('Helvetica').fontSize(11).fillColor(COLOR_MUTED).text(metaParts.join(' · '), left, y);
-    y = doc.y + 8;
+    doc.font('Helvetica').fontSize(11).fillColor(COLOR_MUTED)
+      .text(metaParts.join(' · '), { width: pageWidth, lineGap: 2 });
   }
+  doc.moveDown(0.6);
 
-  // ---- Snapshot pill row ------------------------------------------------
+  // ---- Snapshot pill row (wraps to a new line if it overflows) ---------
   const pills = [];
   if (prospect.tier) pills.push({ label: `Tier ${prospect.tier}`, color: COLOR_ACCENT });
   if (prospect.stage) pills.push({ label: STAGE_LABELS[prospect.stage] || prospect.stage, color: COLOR_PRIMARY });
   if (prospect.netWorth) pills.push({ label: `Net worth: ${prospect.netWorth}`, color: COLOR_MUTED });
-
   const suggested = suggestedAskRange(prospect);
   if (suggested) pills.push({ label: `Suggested ask: ${suggested}`, color: COLOR_PRIMARY });
 
-  let pillX = left;
-  doc.font('Helvetica-Bold').fontSize(9);
-  for (const pill of pills) {
-    const w = doc.widthOfString(pill.label) + 14;
-    doc.roundedRect(pillX, y, w, 20, 4).fillAndStroke(pill.color, pill.color);
-    doc.fillColor('#ffffff').text(pill.label, pillX + 7, y + 6, { lineBreak: false });
-    pillX += w + 6;
+  if (pills.length > 0) {
+    doc.font('Helvetica-Bold').fontSize(9);
+    const pillHeight = 20;
+    const pillGap = 6;
+    const rowGap = 6;
+    let pillX = left;
+    let pillY = doc.y;
+    for (const pill of pills) {
+      const w = doc.widthOfString(pill.label) + 14;
+      // Wrap onto a new pill row if this pill would overflow the page width
+      if (pillX + w > left + pageWidth) {
+        pillX = left;
+        pillY += pillHeight + rowGap;
+      }
+      doc.roundedRect(pillX, pillY, w, pillHeight, 4).fillAndStroke(pill.color, pill.color);
+      doc.fillColor('#ffffff')
+        .text(pill.label, pillX + 7, pillY + 6, { lineBreak: false, width: w - 14 });
+      pillX += w + pillGap;
+    }
+    // Advance doc.y past the pill block, whatever row it ended on
+    doc.x = left;
+    doc.y = pillY + pillHeight + PAD_SECTION;
   }
-  y += 32;
 
   // ---- Bio --------------------------------------------------------------
   if (prospect.bio) {
-    sectionTitle(doc, 'Background', left, y);
-    y = doc.y + 4;
+    sectionTitle(doc, 'Background', left, pageWidth);
     doc.font('Helvetica').fontSize(10).fillColor(COLOR_TEXT)
-      .text(prospect.bio.trim(), left, y, { width: pageWidth, lineGap: 2 });
-    y = doc.y + 12;
+      .text(prospect.bio.trim(), left, doc.y, { width: pageWidth, lineGap: LG_BODY });
+    doc.moveDown(0.8);
+    doc.y += PAD_SECTION - 8;
   }
 
   // ---- ICC network connections -----------------------------------------
-  sectionTitle(doc, `ICC Donor Network Connections (${iccNetworkConnections.length})`, left, y);
-  y = doc.y + 4;
+  sectionTitle(doc, `ICC Donor Network Connections (${iccNetworkConnections.length})`, left, pageWidth);
   if (iccNetworkConnections.length === 0) {
     doc.font('Helvetica-Oblique').fontSize(10).fillColor(COLOR_MUTED)
-      .text('No overlap with the existing ICC donor base recorded.', left, y, { width: pageWidth });
-    y = doc.y + 12;
+      .text('No overlap with the existing ICC donor base recorded.', left, doc.y, { width: pageWidth, lineGap: LG_BODY });
+    doc.moveDown(0.6);
   } else {
     doc.font('Helvetica').fontSize(10).fillColor(COLOR_TEXT);
-    // Two-column list to keep it tight
     const cols = 2;
     const colWidth = pageWidth / cols;
-    const startY = y;
-    let maxY = y;
+    const rowHeight = 16;                 // bumped from 14 to prevent tight-line overlap
+    const startY = doc.y;
+    let maxY = startY;
     const items = iccNetworkConnections.slice(0, 14);
     items.forEach((d, idx) => {
       const col = idx % cols;
       const row = Math.floor(idx / cols);
       const x = left + col * colWidth;
-      const itemY = startY + row * 14;
+      const itemY = startY + row * rowHeight;
       const badge = d.type === 'org' ? '  · Org' : '';
-      doc.text(`• ${d.name}${badge}`, x, itemY, { width: colWidth - 8, lineBreak: false });
-      if (itemY + 14 > maxY) maxY = itemY + 14;
+      doc.text(`• ${d.name}${badge}`, x, itemY, { width: colWidth - 12, lineBreak: false, ellipsis: true });
+      if (itemY + rowHeight > maxY) maxY = itemY + rowHeight;
     });
-    y = maxY + 8;
+    doc.x = left;
+    doc.y = maxY + 4;
     if (iccNetworkConnections.length > 14) {
       doc.font('Helvetica-Oblique').fontSize(9).fillColor(COLOR_MUTED)
-        .text(`+ ${iccNetworkConnections.length - 14} more`, left, y);
-      y = doc.y + 8;
+        .text(`+ ${iccNetworkConnections.length - 14} more`, left, doc.y, { width: pageWidth, lineBreak: false });
+      doc.moveDown(0.4);
     }
   }
+  doc.y += PAD_HEADING;
 
   // ---- Talking points ---------------------------------------------------
-  sectionTitle(doc, 'Suggested Talking Points', left, y);
-  y = doc.y + 4;
+  sectionTitle(doc, 'Suggested Talking Points', left, pageWidth);
   if (talkingPoints.points && talkingPoints.points.length > 0) {
-    doc.font('Helvetica').fontSize(10).fillColor(COLOR_TEXT);
     talkingPoints.points.forEach((pt, i) => {
       const numStr = `${i + 1}.`;
-      doc.font('Helvetica-Bold').text(numStr, left, y, { continued: false, lineBreak: false });
-      doc.font('Helvetica').text(pt, left + 18, y, { width: pageWidth - 18, lineGap: 2 });
-      y = doc.y + 6;
+      const rowTop = doc.y;
+      // Draw the number label at rowTop, no line-break so doc.y is not moved.
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(COLOR_PRIMARY)
+        .text(numStr, left, rowTop, { width: 16, lineBreak: false });
+      // Draw the actual text, flowing, indented — this call sets doc.y past
+      // the wrapped text. Use continued:false and pass width so wrap works.
+      doc.font('Helvetica').fontSize(10).fillColor(COLOR_TEXT)
+        .text(pt, left + 20, rowTop, { width: pageWidth - 20, lineGap: LG_BODY });
+      doc.moveDown(0.4);   // 0.4 of a line ≈ ~5pt padding between points
     });
   } else {
     const note = talkingPoints.error
       ? `AI talking points unavailable: ${talkingPoints.error}`
       : 'AI talking points unavailable.';
     doc.font('Helvetica-Oblique').fontSize(10).fillColor(COLOR_MUTED)
-      .text(note, left, y, { width: pageWidth });
-    y = doc.y + 8;
+      .text(note, left, doc.y, { width: pageWidth, lineGap: LG_BODY });
+    doc.moveDown(0.4);
   }
 
-  // ---- Footer -----------------------------------------------------------
-  const footerY = doc.page.height - doc.page.margins.bottom - 14;
-  doc.moveTo(left, footerY - 6).lineTo(left + pageWidth, footerY - 6).strokeColor(COLOR_RULE).lineWidth(0.5).stroke();
-  doc.font('Helvetica').fontSize(8).fillColor(COLOR_MUTED)
-    .text(`Prepared by ${generatedBy || 'ICC Donor Intelligence'} · ${dateStr} · Confidential`, left, footerY, {
-      width: pageWidth,
-      align: 'center',
-    });
+  // ---- Footer stamped on every page ----------------------------------
+  // Iterate buffered pages so we can draw a consistent footer on each
+  // without recursion (drawing the footer via pageAdded is unsafe because
+  // the text call itself can trigger a new page and cause infinite loops).
+  //
+  // pdfkit auto-adds a new page whenever text() is written past the bottom
+  // margin — even with lineBreak:false. Because footerY sits inside that
+  // reserved bottom-margin band, we temporarily zero the bottom margin on
+  // each page during footer stamping to prevent phantom blank pages from
+  // being appended (see https://github.com/foliojs/pdfkit/issues/764).
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    const savedBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    try {
+      const footerY = doc.page.height - 48;
+      doc.moveTo(left, footerY - 6).lineTo(left + pageWidth, footerY - 6)
+        .strokeColor(COLOR_RULE).lineWidth(0.5).stroke();
+      doc.font('Helvetica').fontSize(8).fillColor(COLOR_MUTED)
+        .text(
+          `Prepared by ${generatedBy || 'ICC Donor Intelligence'} · ${dateStr} · Confidential`,
+          left, footerY,
+          { width: pageWidth, align: 'center', lineBreak: false }
+        );
+    } finally {
+      doc.page.margins.bottom = savedBottom;
+    }
+  }
 
   doc.end();
 }
 
-function sectionTitle(doc, label, x, y) {
+function sectionTitle(doc, label, x, pageWidth) {
+  // Draw the section heading, then leave doc.y correctly positioned so the
+  // following content flows below it with proper padding.
+  const titleY = doc.y;
   doc.font('Helvetica-Bold').fontSize(11).fillColor(COLOR_PRIMARY)
-    .text(label.toUpperCase(), x, y, { characterSpacing: 0.5 });
-  doc.moveTo(x, doc.y + 1).lineTo(x + 60, doc.y + 1).strokeColor(COLOR_ACCENT).lineWidth(1.2).stroke();
+    .text(label.toUpperCase(), x, titleY, { characterSpacing: 0.5, width: pageWidth, lineBreak: false });
+  // Underline sits just below the text baseline
+  const underlineY = doc.y + 1;
+  doc.moveTo(x, underlineY).lineTo(x + 60, underlineY)
+    .strokeColor(COLOR_ACCENT).lineWidth(1.2).stroke();
+  // Advance doc.y past the underline plus a heading pad so content doesn't touch
+  doc.x = x;
+  doc.y = underlineY + PAD_HEADING;
 }
 
 // ---- Routes --------------------------------------------------------------

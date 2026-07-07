@@ -1,20 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../api.js';
 
 export default function AIResearchPanel({ prospect, onApplied }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [rawError, setRawError] = useState('');
+  const [applyError, setApplyError] = useState('');
   const [result, setResult] = useState(null);
   const [suggestedMatchIds, setSuggestedMatchIds] = useState([]);
   const [checked, setChecked] = useState({});
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const appliedRef = useRef(null);
+  const applyErrorRef = useRef(null);
+
+  // Scroll success/error banners into view when they appear so the user actually notices
+  useEffect(() => {
+    if (applied && appliedRef.current) {
+      appliedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [applied]);
+  useEffect(() => {
+    if (applyError && applyErrorRef.current) {
+      applyErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [applyError]);
 
   async function run() {
     setLoading(true);
     setError('');
     setRawError('');
+    setApplyError('');
     setResult(null);
     setApplied(false);
     try {
@@ -33,7 +49,8 @@ export default function AIResearchPanel({ prospect, onApplied }) {
         connectionDetail: true,
       });
     } catch (e) {
-      setError(e.message);
+      console.error('[AIResearchPanel] run failed:', e);
+      setError(formatError(e, 'Research'));
       if (e.data?.raw) setRawError(e.data.raw);
     } finally {
       setLoading(false);
@@ -41,7 +58,17 @@ export default function AIResearchPanel({ prospect, onApplied }) {
   }
 
   async function apply() {
+    // Guard: never fire if we don't have a result to apply
+    if (!result) {
+      setApplyError('No research result to apply. Run AI Research first.');
+      return;
+    }
+    // Guard against double-clicks (button is also disabled while applying)
+    if (applying) return;
+
     setApplying(true);
+    setApplyError('');
+    setApplied(false);
     try {
       const updates = {};
       if (checked.campus) updates.campus = result.campus || [];
@@ -58,11 +85,20 @@ export default function AIResearchPanel({ prospect, onApplied }) {
         if (result.iccNetworkNotes) parts.push('Notes: ' + result.iccNetworkNotes);
         updates.connectionDetail = parts.join('\n\n');
       }
-      await api.post(`/api/prospects/${prospect.id}/research/apply`, { updates });
+
+      const response = await api.post(`/api/prospects/${prospect.id}/research/apply`, { updates });
+
+      // Sanity check: server must return the updated prospect
+      if (!response || !response.prospect) {
+        throw new Error('Server returned an empty response. Please try again.');
+      }
+
       setApplied(true);
+      // Refresh parent so UI reflects the newly-written fields
       onApplied && onApplied();
     } catch (e) {
-      setError(e.message);
+      console.error('[AIResearchPanel] apply failed:', e);
+      setApplyError(formatError(e, 'Apply'));
     } finally {
       setApplying(false);
     }
@@ -95,7 +131,17 @@ export default function AIResearchPanel({ prospect, onApplied }) {
         </div>
       )}
 
-      {applied && <div className="alert alert-success" style={{ marginTop: 12 }}>Research applied to profile.</div>}
+      {applied && (
+        <div
+          ref={appliedRef}
+          className="alert alert-success"
+          style={{ marginTop: 12, fontWeight: 600 }}
+          role="status"
+          aria-live="polite"
+        >
+          ✓ Research applied to profile. Changes are saved.
+        </div>
+      )}
 
       {result && (
         <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
@@ -134,16 +180,51 @@ export default function AIResearchPanel({ prospect, onApplied }) {
             {result.suggestedIntroAsk && <div><strong>Suggested ask:</strong> <em>"{result.suggestedIntroAsk}"</em></div>}
           </Section>
 
-          <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
+          {/* Inline apply-error near the Apply button so the user sees it */}
+          {applyError && (
+            <div
+              ref={applyErrorRef}
+              className="alert alert-error"
+              style={{ marginTop: 14 }}
+              role="alert"
+              aria-live="assertive"
+            >
+              <strong>Couldn't apply changes.</strong>
+              <div style={{ marginTop: 4 }}>{applyError}</div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
             <button className="btn btn-primary" onClick={apply} disabled={applying}>
               {applying ? <><span className="spinner" /> Applying…</> : 'Apply to Profile'}
             </button>
-            <button className="btn btn-ghost" onClick={() => setResult(null)}>Dismiss</button>
+            <button className="btn btn-ghost" onClick={() => { setResult(null); setApplied(false); setApplyError(''); }}>Dismiss</button>
+            {applied && (
+              <span style={{ color: 'var(--accent-green)', fontSize: 13, fontWeight: 600 }}>
+                ✓ Saved
+              </span>
+            )}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+// Build a user-facing error string with as much detail as we can extract
+// from the fetch-wrapper error (see client/src/api.js).
+function formatError(e, label) {
+  const status = e?.status;
+  const serverMsg = e?.data?.error;
+  const msg = serverMsg || e?.message || 'Unknown error';
+  if (status) {
+    if (status === 401 || status === 403) {
+      return `${label} failed — your session expired. Please refresh the page and sign in again.`;
+    }
+    return `${label} failed (HTTP ${status}): ${msg}`;
+  }
+  // No status = network error / CORS / server unreachable
+  return `${label} failed: ${msg}. Check your connection and try again.`;
 }
 
 function Section({ label, checked, onToggle, children, hasData }) {
